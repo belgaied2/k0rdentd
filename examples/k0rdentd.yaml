@@ -1,0 +1,34 @@
+# K0rdentd Configuration Example
+#
+# This file configures both K0s and K0rdent installation
+
+# K0s Configuration
+k0s:
+  version: "v1.27.4+k0s.0"
+  api:
+    address: "0.0.0.0"
+    port: 6443
+  network:
+    provider: "calico"
+    podCIDR: "10.244.0.0/16"
+    serviceCIDR: "10.96.0.0/12"
+  storage:
+    type: "etcd"
+    etcd:
+      peerAddress: "127.0.0.1"
+
+# K0rdent Configuration
+k0rdent:
+  version: "v0.1.0"
+  helm:
+    chart: "k0rdent/k0rdent"
+    namespace: "k0rdent-system"
+    values:
+      replicaCount: 1
+      service:
+        type: ClusterIP
+        port: 80
+
+# Global Settings
+debug: false
+logLevel: "info"

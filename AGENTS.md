@@ -1,0 +1,44 @@
+# K0rdentd
+
+K0rdentd is a CLI tool which deploys K0s and K0rdent on the VM it runs on. It follows a similar pattern to [RancherD](https://github.com/harvester/rancherd) which installs RKE2 and Rancher in one go. 
+
+## Architecture
+
+- Use urfave/cli to handle CLI features
+- Accept a config file in the same manner as rancherd, the config file should be in YAML format and offer configuration options for k0s and for k0rdent. Its default location should be `/etc/k0rdentd/k0rdentd.yaml` but it should be configurable using CLI flags or environment variables.
+- RancherD relies on a `Plan` mechanism that relies on an external component called `Upgrade Controller`, we don't want that here, we want to simply call `k0s` binary and configure it with `/etc/k0s/k0s.yaml` based on the content of the `/etc/k0rdentd/k0rdentd.yaml` file.
+- `k0rdent` should be installed using the k0s addon mechanism (under `.spec.extensions.helm` of the `k0s.yaml`, more information avaible [here](https://docs.k0sproject.io/stable/helm-charts/)).
+- Always check the [ARCHITECTURE.md](./ARCHITECTURE.md) file for references about the architecture.
+- Make sure that 
+
+## Testing
+
+- Write unit tests for all business logic
+- Maintain >80% code coverage
+- Use `ginkgo` and `gomega` for Unit tests
+
+## Security
+
+- Never commit API keys or secrets
+- Validate all user inputs
+- Use parameterized queries for database access
+
+## Terminal Command usage
+
+- Go is installed in `/home/linuxbrew/.linuxbrew/bin/`, this is present in the `$PATH` that is defined in `~/.bashrc`, do not forget to source `~/.bashrc` before running commands.
+- Use `/bin/bash` as a shell interpreter.
+
+## Logging
+
+- The library `sirupsen/logrus` shall be used, with the following Log levels
+  - for each intermediate step during any kind of processing, a `DEBUG` log will be triggered.
+  - for each finished step that is relevant to the final user, such as a status change or a completed task, an `INFO` log should be triggered.
+  - for each unexpected behavior happening during a processing, such as an error that is ignored, a `WARN` log should be triggered.
+
+## Documentation
+
+- Always use the Context7 MCP server when you need use library/API documentation, setup steps, architecture decisions or code generation. 
+- More specifically if you need to do ANYTHING related to :
+  - `k0s`: check `k0sproject/k0s` on context7 before generating code or suggesting architecture.
+  - `k0rdent`: check all the following `docs.k0rdent.io/latest`, `k0rdent/kcm` and `k0rdent/docs`
+- For all other libraries, before suggesting code, use the `resolve-library-id` tool to find the correct documentation context.
