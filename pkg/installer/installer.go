@@ -1,7 +1,9 @@
 package installer
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,6 +29,58 @@ func NewInstaller(debug, dryRun bool) *Installer {
 	return &Installer{
 		debug:  debug,
 		dryRun: dryRun,
+	}
+}
+
+// waitForWithSpinner waits for a condition with a spinner animation
+func (i *Installer) waitForWithSpinner(
+	timeout time.Duration,
+	message string,
+	checkFunc func() (bool, error),
+) error {
+	tickerInterval := 100 * time.Millisecond
+	ticker := time.NewTicker(tickerInterval)
+	defer ticker.Stop()
+
+	stopSpinner := make(chan bool)
+	doneCh := make(chan bool)
+	timeoutChan := time.After(timeout)
+
+	go func() {
+		defer tickerSpinner.Stop()
+		defer close(doneCh)
+
+		tickerCounter := 0
+		for {
+			select {
+			case <-stopSpinner:
+				fmt.Println("\r⣿", message, "...")
+				return
+			case <-ticker.C:
+				fmt.Printf("\r%s %s...", spinner[tickerCounter%len(spinner)], message)
+				tickerCounter++
+			}
+		}
+	}()
+
+	for {
+		select {
+		case <-timeoutChan:
+			stopSpinner <- true
+			<-doneCh
+			return fmt.Errorf("timeout waiting for %s", message)
+		default:
+			ready, err := checkFunc()
+			if err != nil {
+				utils.GetLogger().Debugf("Check for %s failed: %v", message, err)
+				continue
+			}
+			if ready {
+				stopSpinner <- true
+				<-doneCh
+				return nil
+			}
+		}
 	}
 }
 
@@ -65,6 +119,13 @@ func (i *Installer) Uninstall() error {
 		fmt.Printf("1. Execute: k0s reset")
 		fmt.Printf("2. Remove K0s configuration files")
 		return nil
+	}
+
+	// Stop K0s if it started
+	if isK0sStarted() {
+		if err := i.stopK0s(); err != nil {
+			return fmt.Errorf("failed to stop K0s: %w", err)
+		}
 	}
 
 	// Reset K0s
@@ -127,135 +188,97 @@ func (i *Installer) installK0s() error {
 	return nil
 }
 
-// waitForK0sReady waits for k0s to be ready by checking its status
-func (i *Installer) waitForK0sReady() error {
-
-	// Set timeout to 5 minutes
-	timeout := time.After(5 * time.Minute)
-	tickerK0s := time.NewTicker(5 * time.Second)
-
-	stopSpinner := make(chan bool)
-	doneCh := make(chan bool)
-	go func() {
-		defer tickerSpinner.Stop()
-		defer close(doneCh)
-
-		tickerCounter := 0
-		for {
-			select {
-			case <-stopSpinner:
-				fmt.Println("\r⠿ Waiting for k0s to become ready...")
-				return
-			case <-tickerSpinner.C:
-				// fmt.Printff("\r%s Waiting for k0s to become ready...", spinner[i])
-				fmt.Printf("\r%s Waiting for k0s to become ready...", spinner[tickerCounter%len(spinner)])
-				tickerCounter++
-			}
-		}
-	}()
-
-	for {
-		select {
-		case <-timeout:
-			stopSpinner <- true
-			return fmt.Errorf("\u2718 Timed out waiting for k0s to become ready!")
-		case <-tickerK0s.C:
-			// Run k0s status command
-			cmd := exec.Command("sudo", "k0s", "status")
-			output, err := cmd.Output()
-			if err != nil {
-				// Log the error but continue waiting
-				utils.GetLogger().Debugf("k0s status check failed: %v", err)
-			}
-
-			// Parse output to check if k0s is ready
-			outputStr := string(output)
-			if strings.Contains(outputStr, "Kube-api probing successful: true") {
-				// fmt.Printf("\n")
-				// fmt.Printf("✅ k0s is ready!")
-				stopSpinner <- true
-				<-doneCh
-
-				return nil
-			}
-		}
+// isK0sStarted checks if K0s is started by checking its status
+func isK0sStarted() bool {
+	// Run k0s status command
+	cmd := exec.Command("k0s", "status")
+	output, err := cmd.Output()
+	if err != nil {
+		// Log the error but return false
+		utils.GetLogger().Debugf("k0s status check failed: %v", err)
+		return false
 	}
+
+	// Parse output to check if k0s is ready
+	outputStr := string(output)
+	return strings.Contains(outputStr, "Kube-api probing successful: true")
 }
 
-// waitForK0rdentInstalled waits for the k0rdent Helm chart to be installed
-func (i *Installer) waitForK0rdentInstalled() error {
-
-	// Set timeout to 5 minutes
-	timeout := time.After(5 * time.Minute)
-	tickerK0rdent := time.NewTicker(10 * time.Second)
-	stopSpinner := make(chan bool)
-	doneCh := make(chan bool)
-	tickerSpinner.Reset(100 * time.Millisecond)
-	go func() {
-		defer tickerSpinner.Stop()
-		defer close(doneCh)
-
-		tickerCounter := 0
-		for {
-			select {
-			case <-stopSpinner:
-				fmt.Println("\r⠿ Waiting for k0rdent to become ready...")
-				return
-			case <-tickerSpinner.C:
-				// fmt.Printff("\r%s Waiting for k0s to become ready...", spinner[i])
-				fmt.Printf("\r%s Waiting for K0rdent to become ready...", spinner[tickerCounter%len(spinner)])
-				tickerCounter++
-			}
-		}
-	}()
-
-	for {
-		select {
-		case <-timeout:
-			stopSpinner <- true
-			return fmt.Errorf("timeout waiting for k0rdent Helm chart to be installed")
-		case <-tickerK0rdent.C:
-			// Check if kcm-system namespace exists
-			cmd := exec.Command("sudo", "k0s", "kubectl", "get", "namespaces", "kcm-system", "-o", "jsonpath='{.status.phase}'")
-			_, err := cmd.Output()
-			if err != nil {
-				utils.GetLogger().Debugf("kcm-system namespace check failed: %v", err)
-				continue
-			}
-
-			// Check if all required pods are running
-			podsCmd := exec.Command("sudo", "k0s", "kubectl", "get", "pods", "-n", "kcm-system", "-o", "jsonpath='{.items[*].status.phase}'")
-			podsOutput, podsErr := podsCmd.Output()
-			if podsErr != nil {
-				fmt.Printf("\n")
-				utils.GetLogger().Debugf("k0rdent pods check failed: %v", podsErr)
-				continue
-			}
-
-			podsStatus := string(podsOutput)
-			// Check if all pods are Running
-			if strings.Contains(podsStatus, "Running") && !strings.Contains(podsStatus, "Pending") && !strings.Contains(podsStatus, "Error") {
-				stopSpinner <- true
-				<-doneCh
-				fmt.Println("✅ k0rdent Helm chart installed successfully!")
-				return nil
-			}
-		}
-	}
-}
-
-// resetK0s resets K0s installation
-func (i *Installer) resetK0s() error {
-	cmd := exec.Command("k0s", "reset")
+// stopK0s stops the K0s service
+func (i *Installer) stopK0s() error {
+	cmd := exec.Command("k0s", "stop")
 
 	if i.debug {
-		utils.GetLogger().Debug("🔧 Executing: k0s reset")
+		utils.GetLogger().Debug("🔧 Executing: k0s stop")
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("k0s reset failed: %w", err)
+		return fmt.Errorf("k0s stop failed: %w", err)
+	}
+
+	if i.debug {
+		fmt.Printf("✅ K0s stopped successfully")
+	}
+
+	return nil
+}
+
+// waitForK0sReady waits for k0s to be ready by checking its status
+func (i *Installer) waitForK0sReady() error {
+	return i.waitForWithSpinner(
+		5*time.Minute,
+		"Waiting for k0s to become ready",
+		func() (bool, error) {
+			return isK0sStarted(), nil
+		},
+	)
+}
+
+// waitForK0rdentInstalled waits for the k0rdent Helm chart to be installed
+func (i *Installer) waitForK0rdentInstalled() error {
+	return i.waitForWithSpinner(
+		5*time.Minute,
+		"Waiting for K0rdent to become ready",
+		func() (bool, error) {
+			// Check if kcm-system namespace exists
+			cmd := exec.Command("k0s", "kubectl", "get", "namespaces", "kcm-system", "-o", "jsonpath='{.status.phase}'")
+			_, err := cmd.Output()
+			if err != nil {
+				utils.GetLogger().Debugf("kcm-system namespace check failed: %v", err)
+				return false, nil
+			}
+
+			// Check if all required pods are running
+			podsCmd := exec.Command("k0s", "kubectl", "get", "pods", "-n", "kcm-system", "-o", "jsonpath='{.items[*].status.phase}'")
+			podsOutput, podsErr := podsCmd.Output()
+			if podsErr != nil {
+				utils.GetLogger().Debugf("k0rdent pods check failed: %v", podsErr)
+				return false, nil
+			}
+
+			podsStatus := string(podsOutput)
+			// Check if all pods are Running
+			return strings.Contains(podsStatus, "Running") && !strings.Contains(podsStatus, "Pending") && !strings.Contains(podsStatus, "Error"), nil
+		},
+	)
+}
+
+// resetK0s resets K0s installation
+func (i *Installer) resetK0s() error {
+	var stderrBuf bytes.Buffer
+	cmd := exec.Command("k0s", "reset")
+	cmd.Stderr = &stderrBuf
+
+	if i.debug {
+		utils.GetLogger().Debug("🔧 Executing: k0s reset")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
+	}
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("k0s reset failed: %v. stderr: %s", err, stderrBuf.String())
 	}
 
 	if i.debug {

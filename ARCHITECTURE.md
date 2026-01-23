@@ -196,6 +196,5 @@ sequenceDiagram
 ## Open Questions
 
 1. Should we support multiple k0rdent versions or only the latest?
-2. What logging framework should we use?
 3. Should we include health checks and status reporting?
 4. What about upgrade scenarios from previous versions?
