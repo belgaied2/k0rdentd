@@ -164,21 +164,32 @@ func (i *Installer) writeK0sConfig(config []byte) error {
 
 // installK0s installs K0s using the generated configuration
 func (i *Installer) installK0s() error {
+	var stderrBuf bytes.Buffer
 	cmd := exec.Command("k0s", "install", "controller", "--enable-worker", "--no-taints")
+	cmd.Stderr = &stderrBuf
 
 	if i.debug {
 		utils.GetLogger().Debug("🔧 Executing: k0s install")
 		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
 	}
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("Command \"k0s install\" failed: %w", err)
+		return fmt.Errorf("Command \"k0s install\" failed: %w. stderr: %s", err, stderrBuf.String())
 	}
 
 	startCmd := exec.Command("k0s", "start")
+	var startStderrBuf bytes.Buffer
+	startCmd.Stderr = &startStderrBuf
+
+	if i.debug {
+		utils.GetLogger().Debug("🔧 Executing: k0s start")
+		startCmd.Stdout = os.Stdout
+		startCmd.Stderr = io.MultiWriter(os.Stderr, &startStderrBuf)
+	}
+
 	if err := startCmd.Run(); err != nil {
-		return fmt.Errorf("Command \"k0s start\" failed: %w", err)
+		return fmt.Errorf("Command \"k0s start\" failed: %w. stderr: %s", err, startStderrBuf.String())
 	}
 	err := i.waitForK0sReady()
 	if err != nil {
@@ -206,16 +217,18 @@ func isK0sStarted() bool {
 
 // stopK0s stops the K0s service
 func (i *Installer) stopK0s() error {
+	var stderrBuf bytes.Buffer
 	cmd := exec.Command("k0s", "stop")
+	cmd.Stderr = &stderrBuf
 
 	if i.debug {
 		utils.GetLogger().Debug("🔧 Executing: k0s stop")
 		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
 	}
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("k0s stop failed: %w", err)
+		return fmt.Errorf("k0s stop failed: %w. stderr: %s", err, stderrBuf.String())
 	}
 
 	if i.debug {
