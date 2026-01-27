@@ -1,10 +1,13 @@
 package cli
 
 import (
+	"fmt"
+
+	"github.com/belgaied2/k0rdentd/pkg/config"
 	"github.com/belgaied2/k0rdentd/pkg/installer"
+	"github.com/belgaied2/k0rdentd/pkg/k0s"
 	"github.com/belgaied2/k0rdentd/pkg/utils"
 	"github.com/urfave/cli/v2"
-	"fmt"
 )
 
 var UninstallCommand = &cli.Command{
@@ -23,6 +26,23 @@ var UninstallCommand = &cli.Command{
 }
 
 func uninstallAction(c *cli.Context) error {
+	// Load configuration
+	cfg, err := config.LoadConfig(c.String("config-file"))
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Check if k0s binary exists
+	k0sCheck, err := k0s.CheckK0s(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to check k0s: %w", err)
+	}
+
+	// If k0s is not installed, uninstall cannot proceed
+	if !k0sCheck.Installed {
+		return fmt.Errorf("k0s binary not found, cannot uninstall")
+	}
+
 	if !c.Bool("force") {
 		utils.GetLogger().Info("🚨 This will uninstall K0s and K0rdent from this system.")
 		utils.GetLogger().Info("Are you sure you want to continue? (y/N): ")

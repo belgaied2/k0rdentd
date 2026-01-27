@@ -6,6 +6,8 @@ import (
 	"github.com/belgaied2/k0rdentd/pkg/config"
 	"github.com/belgaied2/k0rdentd/pkg/generator"
 	"github.com/belgaied2/k0rdentd/pkg/installer"
+	"github.com/belgaied2/k0rdentd/pkg/k0s"
+	"github.com/belgaied2/k0rdentd/pkg/utils"
 	"github.com/urfave/cli/v2"
 )
 
@@ -42,6 +44,20 @@ func installAction(c *cli.Context) error {
 	}
 	if c.IsSet("k0rdent-version") {
 		cfg.K0rdent.Version = c.String("k0rdent-version")
+	}
+
+	// Check if k0s binary exists
+	k0sCheck, err := k0s.CheckK0s(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to check k0s: %w", err)
+	}
+
+	// If k0s is not installed, install it
+	if !k0sCheck.Installed {
+		utils.GetLogger().Info("k0s binary not found, installing...")
+		if err := k0s.InstallK0s(); err != nil {
+			return fmt.Errorf("failed to install k0s: %w", err)
+		}
 	}
 
 	// Generate K0s configuration

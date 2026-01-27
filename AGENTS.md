@@ -16,6 +16,7 @@ K0rdentd is a CLI tool which deploys K0s and K0rdent on the VM it runs on. It fo
 - Write unit tests for all business logic
 - Maintain >80% code coverage
 - Use `ginkgo` and `gomega` for Unit tests
+- For verifying implementation manually, you can run `go build -o k0rdentd cmd/k0rdentd/main.go` and then `sudo ./k0rdentd -c k0rdentd-config.yaml install` and check the output of the command. After that, you can also use `sudo k0s kubectl` to access the `k0s` cluster if it was created successfully.
 
 ## Security
 
