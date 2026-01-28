@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 
-	"github.com/belgaied2/k0rdentd/pkg/config"
 	"github.com/belgaied2/k0rdentd/pkg/installer"
 	"github.com/belgaied2/k0rdentd/pkg/k0s"
 	"github.com/belgaied2/k0rdentd/pkg/utils"
@@ -26,14 +25,9 @@ var UninstallCommand = &cli.Command{
 }
 
 func uninstallAction(c *cli.Context) error {
-	// Load configuration
-	cfg, err := config.LoadConfig(c.String("config-file"))
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
 
 	// Check if k0s binary exists
-	k0sCheck, err := k0s.CheckK0s(cfg)
+	k0sCheck, err := k0s.CheckK0s()
 	if err != nil {
 		return fmt.Errorf("failed to check k0s: %w", err)
 	}

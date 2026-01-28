@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/belgaied2/k0rdentd/pkg/config"
 	"github.com/onsi/gomega"
 )
 
@@ -30,7 +29,7 @@ func TestCheckK0s(t *testing.T) {
 		}
 		os.Setenv("PATH", newPath)
 
-		result, err := CheckK0s(&config.K0rdentdConfig{})
+		result, err := CheckK0s()
 		g.Expect(err).To(gomega.BeNil())
 		g.Expect(result).ToNot(gomega.BeNil())
 		g.Expect(result.Exists).To(gomega.BeFalse())
@@ -41,7 +40,7 @@ func TestCheckK0s(t *testing.T) {
 	t.Run("k0s installed", func(t *testing.T) {
 		// This test assumes k0s is installed in the test environment
 		// In a real scenario, you might want to mock the exec.LookPath and exec.Command
-		result, err := CheckK0s(&config.K0rdentdConfig{})
+		result, err := CheckK0s()
 		g.Expect(err).To(gomega.BeNil())
 		g.Expect(result).ToNot(gomega.BeNil())
 		g.Expect(result.Exists).To(gomega.BeTrue())

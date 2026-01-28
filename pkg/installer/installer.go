@@ -19,11 +19,6 @@ type Installer struct {
 	dryRun bool
 }
 
-var (
-	spinner       = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-	tickerSpinner = time.NewTicker(time.Second / 10)
-)
-
 // NewInstaller creates a new installer instance
 func NewInstaller(debug, dryRun bool) *Installer {
 	return &Installer{
@@ -46,22 +41,7 @@ func (i *Installer) waitForWithSpinner(
 	doneCh := make(chan bool)
 	timeoutChan := time.After(timeout)
 
-	go func() {
-		defer tickerSpinner.Stop()
-		defer close(doneCh)
-
-		tickerCounter := 0
-		for {
-			select {
-			case <-stopSpinner:
-				fmt.Println("\r⣿", message, "...")
-				return
-			case <-ticker.C:
-				fmt.Printf("\r%s %s...", spinner[tickerCounter%len(spinner)], message)
-				tickerCounter++
-			}
-		}
-	}()
+	go utils.RunWithSpinner(message, stopSpinner, doneCh)
 
 	for {
 		select {
@@ -195,7 +175,6 @@ func (i *Installer) installK0s() error {
 	if err != nil {
 		return fmt.Errorf("Command \"k0s start\" was successful, but k0s never became ready")
 	}
-	fmt.Println("✅ K0s installed and started successfully")
 	return nil
 }
 
