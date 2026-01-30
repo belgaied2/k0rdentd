@@ -7,6 +7,8 @@ import (
 	"github.com/belgaied2/k0rdentd/pkg/generator"
 	"github.com/belgaied2/k0rdentd/pkg/installer"
 	"github.com/belgaied2/k0rdentd/pkg/k0s"
+	"github.com/belgaied2/k0rdentd/pkg/ui"
+	"github.com/belgaied2/k0rdentd/pkg/utils"
 	"github.com/urfave/cli/v2"
 )
 
@@ -76,5 +78,11 @@ func installAction(c *cli.Context) error {
 	}
 
 	fmt.Println("✅ K0s and K0rdent installed successfully!")
+
+	// Expose k0rdent UI
+	if err := ui.ExposeUI(); err != nil {
+		utils.GetLogger().Warnf("Failed to expose k0rdent UI: %v", err)
+	}
+
 	return nil
 }

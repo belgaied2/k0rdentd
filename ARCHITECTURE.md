@@ -38,7 +38,7 @@ CLI Flags:
 ```yaml
 # K0s Configuration
 k0s:
-  version: "v1.27.4+k0s.0"
+  version: "v1.32.4+k0s.0"
   api:
     address: "0.0.0.0"
     port: 6443

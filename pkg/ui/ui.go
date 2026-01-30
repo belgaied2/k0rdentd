@@ -1,0 +1,327 @@
+package ui
+
+import (
+	"bytes"
+	"fmt"
+	"net/http"
+	"os/exec"
+	"strings"
+	"time"
+
+	"github.com/belgaied2/k0rdentd/pkg/utils"
+)
+
+const (
+	// k0rdentUIDeploymentName is the name of the k0rdent UI deployment
+	k0rdentUIDeploymentName = "k0rdent-k0rdent-ui"
+	// k0rdentUIServiceName is the name of the k0rdent UI service
+	k0rdentUIServiceName = "k0rdent-k0rdent-ui"
+	// k0rdentUINamespace is the namespace where k0rdent runs
+	k0rdentUINamespace = "kcm-system"
+	// k0rdentUIIngressName is the name of the ingress we'll create
+	k0rdentUIIngressName = "k0rdent-ui"
+	// k0rdentUIIngressPath is the path where k0rdent UI will be accessible
+	k0rdentUIIngressPath = "/k0rdent-ui"
+)
+
+// DeploymentReady checks if k0rdent UI deployment is ready
+func DeploymentReady() (bool, error) {
+	cmd := exec.Command("k0s", "kubectl", "get", "deployment",
+		"-n", k0rdentUINamespace,
+		k0rdentUIDeploymentName,
+		"-o", "jsonpath='{.status.readyReplicas}'")
+	output, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("failed to check k0rdent UI deployment: %w", err)
+	}
+
+	readyReplicas := strings.Trim(strings.TrimSpace(string(output)), "'")
+	return readyReplicas != "" && readyReplicas != "0" && readyReplicas != "<none>", nil
+}
+
+// GetBasicAuthPassword extracts the Basic Auth password from the k0rdent UI deployment
+func GetBasicAuthPassword() (string, error) {
+	cmd := exec.Command("k0s", "kubectl", "get", "deployment",
+		k0rdentUIDeploymentName,
+		"-n", k0rdentUINamespace,
+		"-o", "jsonpath='{.spec.template.spec.containers[?(@.name==\"k0rdent-ui\")].env[?(@.name==\"BASIC_AUTH_PASSWORD\")].value}'")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get Basic Auth password: %w", err)
+	}
+
+	password := strings.Trim(strings.TrimSpace(string(output)), "'")
+	return password, nil
+}
+
+// ServiceExists checks if k0rdent UI service exists
+func ServiceExists() (bool, error) {
+	cmd := exec.Command("k0s", "kubectl", "get", "service",
+		"-n", k0rdentUINamespace,
+		k0rdentUIServiceName,
+		"-o", "jsonpath='{.metadata.name}'")
+	output, err := cmd.Output()
+	if err != nil {
+		// If error is "NotFound", service doesn't exist
+		if strings.Contains(string(err.(*exec.ExitError).Stderr), "NotFound") {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to check k0rdent UI service: %w", err)
+	}
+
+	name := strings.Trim(strings.TrimSpace(string(output)), "'")
+	return name == k0rdentUIServiceName, nil
+}
+
+// GetNodePort extracts the NodePort from the k0rdent UI service
+func GetNodePort() (int, error) {
+	cmd := exec.Command("k0s", "kubectl", "get", "svc",
+		k0rdentUIServiceName,
+		"-n", k0rdentUINamespace,
+		"-o", "jsonpath='{.spec.ports[0].nodePort}'")
+	output, err := cmd.Output()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get k0rdent UI service NodePort: %w", err)
+	}
+
+	nodePortStr := strings.Trim(strings.TrimSpace(string(output)), "'")
+	var nodePort int
+	_, err = fmt.Sscanf(nodePortStr, "%d", &nodePort)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse NodePort value: %w", err)
+	}
+
+	return nodePort, nil
+}
+
+// CreateIngress creates an ingress to expose k0rdent UI service
+func CreateIngress(ips []string) error {
+	if len(ips) == 0 {
+		return fmt.Errorf("no IPs provided for ingress")
+	}
+
+	// Build ingress YAML spec
+	ingressYAML := buildIngressYAML(ips)
+
+	// Apply using kubectl
+	cmd := exec.Command("k0s", "kubectl", "apply", "-f", "-")
+	cmd.Stdin = bytes.NewReader([]byte(ingressYAML))
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to apply ingress: %w. output: %s", err, string(output))
+	}
+
+	utils.GetLogger().Infof("Created ingress for k0rdent UI")
+	return nil
+}
+
+// buildIngressYAML builds a YAML ingress specification
+func buildIngressYAML(ips []string) string {
+	ingressTemplate := `apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ` + k0rdentUIIngressName + `
+  namespace: ` + k0rdentUINamespace + `
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: ` + k0rdentUIIngressPath + `
+            pathType: Prefix
+            backend:
+              service:
+                name: ` + k0rdentUIServiceName + `
+                port:
+                  number: 80
+`
+
+	return ingressTemplate
+}
+
+// TestUIAccess tests if k0rdent UI is accessible on the given IP
+func TestUIAccess(ip string) bool {
+	url := fmt.Sprintf("http://%s%s", ip, k0rdentUIIngressPath)
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		utils.GetLogger().Debugf("Failed to access k0rdent UI at %s: %v", url, err)
+		return false
+	}
+	defer resp.Body.Close()
+
+	// Check if response looks like HTML
+	contentType := resp.Header.Get("Content-Type")
+	if strings.HasPrefix(contentType, "text/html") {
+		utils.GetLogger().Debugf("Successfully accessed k0rdent UI at %s (HTML response)", url)
+		return true
+	}
+
+	utils.GetLogger().Debugf("k0rdent UI at %s returned non-HTML content type: %s", url, contentType)
+	return false
+}
+
+// ExposeUI exposes k0rdent UI by creating an ingress and printing access URLs
+func ExposeUI() error {
+	utils.GetLogger().Info("Checking k0rdent UI deployment status...")
+
+	// Wait for deployment to be ready with timeout (default 5 minutes)
+	timeout := 5 * time.Minute
+	checkInterval := 5 * time.Second
+	startTime := time.Now()
+
+	for {
+		ready, err := DeploymentReady()
+		if err != nil {
+			return fmt.Errorf("failed to check k0rdent UI deployment readiness: %w", err)
+		}
+		if ready {
+			utils.GetLogger().Info("k0rdent UI deployment is ready")
+			break
+		}
+
+		if time.Since(startTime) > timeout {
+			return fmt.Errorf("timeout waiting for k0rdent UI deployment to be ready after %v", timeout)
+		}
+
+		utils.GetLogger().Debug("k0rdent UI deployment not ready yet, retrying...")
+		time.Sleep(checkInterval)
+	}
+
+	// Check if service exists
+	exists, err := ServiceExists()
+	if err != nil {
+		return fmt.Errorf("failed to check k0rdent UI service existence: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("k0rdent UI service not found")
+	}
+
+	utils.GetLogger().Info("k0rdent UI deployment and service are ready")
+
+	// Modify the existing SVC to make it NodePort instead of ClusterIP
+	cmd := exec.Command("k0s", "kubectl", "patch", "svc",
+		k0rdentUIServiceName,
+		"-n", k0rdentUINamespace,
+		"-p", `{"spec":{"type":"NodePort"}}`)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		utils.GetLogger().Warnf("Failed to modify service type to NodePort: %v. output: %s", err, string(output))
+	} else {
+		utils.GetLogger().Info("Modified k0rdent UI service to NodePort type")
+	}
+
+	// Get NodePort for the service
+	nodePort, err := GetNodePort()
+	if err != nil {
+		utils.GetLogger().Warnf("Failed to get NodePort: %v", err)
+		nodePort = 0
+	} else {
+		utils.GetLogger().Infof("Detected NodePort: %d", nodePort)
+	}
+
+	// Get external/public IPs
+	localIPs, err := GetLocalIPs()
+	if err != nil {
+		utils.GetLogger().Warnf("Failed to get external IPs: %v", err)
+	} else {
+		utils.GetLogger().Debugf("Found external IPs: %v", localIPs)
+	}
+
+	// Try to get external IP from cloud metadata
+	externalIP := GetExternalIP()
+	if externalIP != "" {
+		utils.GetLogger().Infof("Detected external IP: %s", externalIP)
+	}
+
+	// Combine all IPs (external first, then local)
+	var allIPs []string
+	if externalIP != "" {
+		allIPs = append(allIPs, externalIP)
+	}
+	for _, ip := range localIPs {
+		allIPs = append(allIPs, ip.String())
+	}
+
+	// Remove duplicates
+	uniqueIPs := removeDuplicateIPs(allIPs)
+
+	if len(uniqueIPs) == 0 {
+		fmt.Println("⚠️  Warning: Could not detect any IP addresses")
+		fmt.Println("   You can use the following command to port-forward to k0rdent UI:")
+		fmt.Println("   k0s kubectl port-forward -n kcm-system svc/k0rdent-k0rdent-ui 8080:80")
+		fmt.Println("   Then access at: http://localhost:8080/k0rdent-ui")
+		return nil
+	}
+
+	// Create ingress
+	if err := CreateIngress(uniqueIPs); err != nil {
+		return fmt.Errorf("failed to create ingress: %w", err)
+	}
+
+	// Test UI access on primary IP
+	primaryIP := uniqueIPs[0]
+	if TestUIAccess(primaryIP) {
+		fmt.Printf("✅ Successfully tested k0rdent UI access on %s\n", primaryIP)
+	} else {
+		fmt.Printf("⚠️  Warning: Could not access k0rdent UI on %s\n", primaryIP)
+		fmt.Printf("   The ingress has been created, but the UI may not be ready yet\n")
+	}
+
+	// Print all possible access URLs
+	fmt.Println("\n🌐 K0rdent UI is accessible at:")
+	for _, ip := range uniqueIPs {
+		url := fmt.Sprintf("http://%s%s", ip, k0rdentUIIngressPath)
+		fmt.Printf("   %s\n", url)
+	}
+
+	// Add NodePort access URLs if available
+	if nodePort > 0 {
+		fmt.Println("\n🔌 NodePort access (requires firewall rules):")
+		for _, ip := range uniqueIPs {
+			url := fmt.Sprintf("http://%s:%d", ip, nodePort)
+			fmt.Printf("   %s\n", url)
+		}
+		fmt.Println("\n⚠️  Note: Firewall rules may need to be configured to allow access to the NodePort")
+	}
+
+	// Suggest port-forwarding alternative
+	fmt.Println("\n💡 Alternatively, you can use port-forwarding:")
+	fmt.Println("   k0s kubectl port-forward -n kcm-system svc/k0rdent-k0rdent-ui 8080:80")
+	fmt.Println("   Then access at: http://localhost:8080/k0rdent-ui")
+
+	// Get and display Basic Auth credentials
+	password, err := GetBasicAuthPassword()
+	if err != nil {
+		utils.GetLogger().Warnf("Failed to get Basic Auth password: %v", err)
+		fmt.Println("\n🔐 Basic Auth credentials: Not available")
+	} else {
+		// Default username is typically "admin" for k0rdent
+		username := "admin"
+		fmt.Printf("\n🔐 Basic Auth credentials:\n")
+		fmt.Printf("   Username: %s\n", username)
+		fmt.Printf("   Password: %s\n", password)
+	}
+
+	return nil
+}
+
+// removeDuplicateIPs removes duplicate IPs from a slice
+func removeDuplicateIPs(ips []string) []string {
+	seen := make(map[string]bool)
+	var result []string
+
+	for _, ip := range ips {
+		if !seen[ip] {
+			seen[ip] = true
+			result = append(result, ip)
+		}
+	}
+
+	return result
+}
