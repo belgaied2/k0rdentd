@@ -12,13 +12,14 @@ func main() {
 	app := &urfavecli.App{
 		Name:                 "k0rdentd",
 		Usage:                "Deploy K0s and K0rdent on the VM it runs on",
-		Version:              "0.1.0",
+		Version:              cli.Version,
 		EnableBashCompletion: true,
 		Commands: []*urfavecli.Command{
 			cli.InstallCommand,
 			cli.UninstallCommand,
 			cli.VersionCommand,
 			cli.ConfigCommand,
+			cli.ExposeUICommand,
 		},
 		Flags: []urfavecli.Flag{
 			&urfavecli.StringFlag{

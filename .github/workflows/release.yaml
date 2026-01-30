@@ -1,0 +1,188 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goarch: amd64
+            goarm: ""
+          - goarch: arm64
+            goarm: ""
+          - goarch: arm
+            goarm: "7"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Build binary
+        env:
+          GOOS: linux
+          GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
+        run: |
+          output_name="k0rdentd"
+          if [ "${{ matrix.goarch }}" = "arm" ]; then
+            ldflags="-X github.com/belgaied2/k0rdentd/pkg/cli.Version=${VERSION}"
+          else
+            ldflags="-X github.com/belgaied2/k0rdentd/pkg/cli.Version=${VERSION}"
+          fi
+          go build -ldflags "${ldflags}" -o ${output_name} ./cmd/k0rdentd
+
+      - name: Create archive
+        id: create_archive
+        run: |
+          version="${{ steps.get_version.outputs.VERSION }}"
+          arch="${{ matrix.goarch }}"
+          if [ "${{ matrix.goarch }}" = "arm" ]; then
+            arch_suffix="armv7"
+          else
+            arch_suffix="${{ matrix.goarch }}"
+          fi
+          archive_name="k0rdentd-${version}-linux-${arch_suffix}.tar.gz"
+          
+          # Create a temporary directory for the archive contents
+          mkdir -p dist/k0rdentd
+          cp k0rdentd dist/k0rdentd/
+          cp README.md dist/k0rdentd/ 2>/dev/null || echo "README.md not found"
+          cp LICENSE dist/k0rdentd/ 2>/dev/null || echo "LICENSE not found"
+          
+          # Create the archive
+          cd dist
+          tar -czf "${archive_name}" k0rdentd/
+          cd ..
+          
+          # Move archive to root for upload
+          mv "dist/${archive_name}" .
+          
+          # Generate checksum
+          sha256sum "${archive_name}" > "${archive_name}.sha256"
+          
+          echo "ARCHIVE_NAME=${archive_name}" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: k0rdentd-${{ matrix.goarch }}${{ matrix.goarm && format('-arm{0}', matrix.goarm) || '' }}
+          path: |
+            ${{ steps.create_archive.outputs.ARCHIVE_NAME }}
+            ${{ steps.create_archive.outputs.ARCHIVE_NAME }}.sha256
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: k0rdentd-*
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          version="${{ steps.get_version.outputs.VERSION }}"
+          
+          # Get the previous tag
+          previous_tag=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+          
+          if [ -z "$previous_tag" ]; then
+            # First release
+            commit_range=""
+          else
+            commit_range="${previous_tag}..HEAD"
+          fi
+          
+          # Initialize release notes
+          echo "## What's New" > release_notes.md
+          echo "" >> release_notes.md
+          
+          # Get merged PRs with labels (if any)
+          if [ -n "$commit_range" ]; then
+            # Try to get PRs from commit messages
+            features=$(git log ${commit_range} --grep="feat:" --oneline 2>/dev/null || true)
+            fixes=$(git log ${commit_range} --grep="fix:" --oneline 2>/dev/null || true)
+            
+            if [ -n "$features" ]; then
+              echo "### New Features" >> release_notes.md
+              echo "${features}" | while read line; do
+                echo "- ${line}" >> release_notes.md
+              done
+              echo "" >> release_notes.md
+            fi
+            
+            if [ -n "$fixes" ]; then
+              echo "### Bug Fixes" >> release_notes.md
+              echo "${fixes}" | while read line; do
+                echo "- ${line}" >> release_notes.md
+              done
+              echo "" >> release_notes.md
+            fi
+          fi
+          
+          # Add full changelog link
+          echo "### Full Changelog" >> release_notes.md
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${previous_tag}...${version}" >> release_notes.md
+          echo "" >> release_notes.md
+          
+          # Add artifacts section
+          echo "## Artifacts" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "| Architecture | Archive | Checksum |" >> release_notes.md
+          echo "|-------------|---------|----------|" >> release_notes.md
+          
+          for dir in artifacts/k0rdentd-*; do
+            if [ -d "$dir" ]; then
+              for file in "$dir"/*.tar.gz; do
+                if [ -f "$file" ]; then
+                  basename_file=$(basename "$file")
+                  checksum_file="${file}.sha256"
+                  echo "| $(echo $basename_file | sed 's/k0rdentd-//' | sed 's/.tar.gz//') | [${basename_file}](${basename_file}) | [SHA256](${basename_file}.sha256) |" >> release_notes.md
+                fi
+              done
+            fi
+          done
+          
+          cat release_notes.md
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ steps.get_version.outputs.VERSION }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(steps.get_version.outputs.VERSION, 'rc') || contains(steps.get_version.outputs.VERSION, 'beta') || contains(steps.get_version.outputs.VERSION, 'alpha') }}
+          files: |
+            artifacts/k0rdentd-*/*.tar.gz
+            artifacts/k0rdentd-*/*.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
