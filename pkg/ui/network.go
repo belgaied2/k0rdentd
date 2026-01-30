@@ -29,6 +29,8 @@ func commonIgnoredInterfaces() []interfaceFilter {
 	}
 }
 
+// sum is func that calculates the sum of two integers
+
 // shouldIgnoreInterface checks if an interface should be ignored based on common patterns
 func shouldIgnoreInterface(name string) bool {
 	for _, filter := range commonIgnoredInterfaces() {

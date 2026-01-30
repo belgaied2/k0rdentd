@@ -274,7 +274,7 @@ func ExposeUI() error {
 	}
 
 	// Print all possible access URLs
-	fmt.Println("\n🌐 K0rdent UI is accessible at:")
+	fmt.Println("\n🌐 If an Ingress Controller is installed, K0rdent UI is accessible at:")
 	for _, ip := range uniqueIPs {
 		url := fmt.Sprintf("http://%s%s", ip, k0rdentUIIngressPath)
 		fmt.Printf("   %s\n", url)
@@ -292,8 +292,8 @@ func ExposeUI() error {
 
 	// Suggest port-forwarding alternative
 	fmt.Println("\n💡 Alternatively, you can use port-forwarding:")
-	fmt.Println("   k0s kubectl port-forward -n kcm-system svc/k0rdent-k0rdent-ui 8080:80")
-	fmt.Println("   Then access at: http://localhost:8080/k0rdent-ui")
+	fmt.Println("   k0s kubectl port-forward -n kcm-system svc/k0rdent-k0rdent-ui 8080:3000")
+	fmt.Println("   Then access at: http://localhost:8080")
 
 	// Get and display Basic Auth credentials
 	password, err := GetBasicAuthPassword()

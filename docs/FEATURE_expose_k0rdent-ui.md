@@ -15,7 +15,7 @@ The `expose-ui` process (implemented as func `ExposeUI()` in `./pkg/ui/ui.go`) s
 
 ## Verification
 
-The following details just some ways to find out information:
+The following explains just some ways to find out information:
 - Internal IP can be found using `ip a` and ignoring all interfaces such as `caliXXX` or `vxlan.calico`.
 - Cloud provider might recognized using content from `dmidecode -s bios-vendor`. 
 - Use additional verifications that you might know about. For instance, that Amazon EC2 instances, would have a metadata endpoint available on `http://169.254.169.254/latest/meta-data/`.

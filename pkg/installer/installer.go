@@ -231,7 +231,7 @@ func (i *Installer) waitForK0sReady() error {
 // waitForK0rdentInstalled waits for the k0rdent Helm chart to be installed
 func (i *Installer) waitForK0rdentInstalled() error {
 	return i.waitForWithSpinner(
-		5*time.Minute,
+		15*time.Minute,
 		"Waiting for K0rdent to become ready",
 		func() (bool, error) {
 			// Check if kcm-system namespace exists
@@ -242,19 +242,86 @@ func (i *Installer) waitForK0rdentInstalled() error {
 				return false, nil
 			}
 
-			// Check if all required pods are running
-			podsCmd := exec.Command("k0s", "kubectl", "get", "pods", "-n", "kcm-system", "-o", "jsonpath='{.items[*].status.phase}'")
-			podsOutput, podsErr := podsCmd.Output()
-			if podsErr != nil {
-				utils.GetLogger().Debugf("k0rdent pods check failed: %v", podsErr)
+			// Phase 1: Check if helm-controller is still running
+			helmControllerRunning, err := i.isHelmControllerRunning()
+			if err != nil {
+				utils.GetLogger().Warnf("helm-controller check failed: %v", err)
+				return false, nil
+			}
+			if helmControllerRunning {
+				utils.GetLogger().Debug("helm-controller is still running, waiting for K0rdent installation to complete")
 				return false, nil
 			}
 
-			podsStatus := string(podsOutput)
-			// Check if all pods are Running
-			return strings.Contains(podsStatus, "Running") && !strings.Contains(podsStatus, "Pending") && !strings.Contains(podsStatus, "Error"), nil
+			// Phase 2: Check if all required deployments are ready
+			allReady, err := i.areK0rdentDeploymentsReady()
+			if err != nil {
+				utils.GetLogger().Warnf("deployment readiness check failed: %v", err)
+				return false, nil
+			}
+
+			if allReady {
+				utils.GetLogger().Info("All K0rdent deployments are ready")
+			}
+
+			return allReady, nil
 		},
 	)
+}
+
+// isHelmControllerRunning checks if helm-controller pod is running in kcm-system namespace
+func (i *Installer) isHelmControllerRunning() (bool, error) {
+	cmd := exec.Command("k0s", "kubectl", "get", "pods", "-n", "kcm-system",
+		"-l", "app=helm-controller", "-o", "jsonpath='{.items[*].status.phase}'")
+	output, err := cmd.Output()
+	if err != nil {
+		// If no pods found, that's fine - helm-controller is not running
+		return false, nil
+	}
+
+	phases := string(output)
+	// If any pod is in Running phase, helm-controller is still active
+	return strings.Contains(phases, "Running"), nil
+}
+
+// areK0rdentDeploymentsReady checks if all required K0rdent deployments are ready
+func (i *Installer) areK0rdentDeploymentsReady() (bool, error) {
+	requiredDeployments := []string{
+		"k0rdent-cert-manager",
+		"k0rdent-cert-manager-cainjector",
+		"k0rdent-cert-manager-webhook",
+		"k0rdent-datasource-controller-manager",
+		"k0rdent-k0rdent-enterprise-controller-manager",
+		"k0rdent-k0rdent-ui",
+		"k0rdent-rbac-manager",
+		"k0rdent-regional-telemetry",
+	}
+
+	for _, deployment := range requiredDeployments {
+		cmd := exec.Command("k0s", "kubectl", "get", "deployment", deployment,
+			"-n", "kcm-system", "-o", "jsonpath='{.status.readyReplicas}/{.status.replicas}'")
+		output, err := cmd.Output()
+		if err != nil {
+			utils.GetLogger().Debugf("Deployment %s not found or not ready yet", deployment)
+			return false, nil
+		}
+
+		status := string(output)
+		status = strings.Trim(status, "'")
+		parts := strings.Split(status, "/")
+
+		if len(parts) != 2 {
+			utils.GetLogger().Debugf("Unexpected status format for deployment %s: %s", deployment, status)
+			return false, nil
+		}
+
+		if parts[0] != parts[1] {
+			utils.GetLogger().Debugf("Deployment %s not ready: %s", deployment, status)
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
 
 // resetK0s resets K0s installation
