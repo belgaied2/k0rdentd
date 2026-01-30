@@ -9,7 +9,7 @@ K0rdentd is a CLI tool that automates the deployment of K0s and K0rdent on a VM.
 ```mermaid
 graph TD
     A[User] -->|CLI Commands| B[k0rdentd]
-    B -->|Read Config| C["k0rdent.yaml"]
+    B -->|Read Config| C["/etc/k0rdentd/k0rdent.yaml"]
     B -->|Generate Config| D["/etc/k0s/k0s.yaml"]
     B -->|Execute| E[k0s binary]
     E -->|Deploy| F[K0s Cluster]

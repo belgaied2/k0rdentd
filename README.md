@@ -16,8 +16,8 @@ K0rdentd provides a streamlined approach to deploying Kubernetes clusters with K
 ```mermaid
 graph TD
     A[User] -->|CLI Commands| B[k0rdentd]
-    B -->|Read Config| C[/etc/k0rdentd/k0rdentd.yaml]
-    B -->|Generate Config| D[/etc/k0s/k0s.yaml]
+    B -->|Read Config| C["/etc/k0rdentd/k0rdentd.yaml"]
+    B -->|Generate Config| D["/etc/k0s/k0s.yaml"]
     B -->|Execute| E[k0s binary]
     E -->|Deploy| F[K0s Cluster]
     E -->|Helm Extension| G[K0rdent]
@@ -56,6 +56,15 @@ graph TD
 - Go 1.21 or higher
 - k0s binary (will be installed by k0rdentd)
 - Helm 3.x (required for K0rdent installation)
+
+### Downloading from Release page
+`K0rdentd` releases are available for Linux on three architectures: AMD64, ARM64 and ARMv7.
+Files are named: `k0rdentd-<VERSION>-linux-<ARCH>.tar.gz`.
+
+Example for v0.1.0:
+```bash
+curl -L https://github.com/belgaied2/k0rdentd/releases/download/v0.1.0/k0rdentd-v0.1.0-linux-amd64.tar.gz | tar -xz -C /tmp && chmod +x /tmp/k0rdentd && sudo mv /tmp/k0rdentd /usr/local/bin/
+```
 
 ### Building from Source
 
