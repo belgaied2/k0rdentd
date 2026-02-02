@@ -103,33 +103,15 @@ func WriteConfigFile(path string, data []byte) error {
 // DefaultConfig returns a default configuration
 func DefaultConfig() *K0rdentdConfig {
 	return &K0rdentdConfig{
-		K0s: K0sConfig{
-			API: APIConfig{
-				Address: "0.0.0.0",
-				Port:    6443,
-			},
-			Network: NetworkConfig{
-				Provider:    "calico",
-				PodCIDR:     "10.244.0.0/16",
-				ServiceCIDR: "10.96.0.0/12",
-			},
-			Storage: StorageConfig{
-				Type: "etcd",
-				Etcd: EtcdConfig{
-					PeerAddress: "127.0.0.1",
-				},
-			},
-		},
 		K0rdent: K0rdentConfig{
-			Version: "v0.1.0",
+			Version: "v1.2.2",
 			Helm: K0rdentHelmConfig{
-				Chart:     "k0rdent/k0rdent",
+				Chart:     "oci://registry.mirantis.com/k0rdent-enterprise/charts/k0rdent-enterprise",
 				Namespace: "k0rdent-system",
 				Values: map[string]interface{}{
 					"replicaCount": 1,
-					"service": map[string]interface{}{
-						"type": "ClusterIP",
-						"port": 80,
+					"k0rdent-ui": map[string]interface{}{
+						"enabled": true,
 					},
 				},
 			},

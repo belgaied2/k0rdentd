@@ -19,9 +19,9 @@ type K0sClusterConfig struct {
 
 // K0sClusterSpec represents the K0s cluster specification
 type K0sClusterSpec struct {
-	API      K0sAPISpec      `yaml:"api"`
-	Network  K0sNetworkSpec  `yaml:"network"`
-	Storage  K0sStorageSpec  `yaml:"storage"`
+	API        *K0sAPISpec       `yaml:"api,omitempty"`
+	Network    *K0sNetworkSpec   `yaml:"network,omitempty"`
+	Storage    *K0sStorageSpec   `yaml:"storage,omitempty"`
 	Extensions K0sExtensionsSpec `yaml:"extensions"`
 }
 
@@ -33,14 +33,14 @@ type K0sAPISpec struct {
 
 // K0sNetworkSpec represents K0s network specification
 type K0sNetworkSpec struct {
-	Provider  string `yaml:"provider"`
-	PodCIDR   string `yaml:"podCIDR"`
+	Provider    string `yaml:"provider"`
+	PodCIDR     string `yaml:"podCIDR"`
 	ServiceCIDR string `yaml:"serviceCIDR"`
 }
 
 // K0sStorageSpec represents K0s storage specification
 type K0sStorageSpec struct {
-	Type string `yaml:"type"`
+	Type string      `yaml:"type"`
 	Etcd K0sEtcdSpec `yaml:"etcd,omitempty"`
 }
 
@@ -68,11 +68,11 @@ type K0sHelmRepository struct {
 
 // K0sHelmChart represents a helm chart to install
 type K0sHelmChart struct {
-	Name      string                 `yaml:"name"`
-	Chartname string                 `yaml:"chartname"`
-	Version   string                 `yaml:"version"`
-	Namespace string                 `yaml:"namespace"`
-	Values    string                 `yaml:"values"`
+	Name      string `yaml:"name"`
+	Chartname string `yaml:"chartname"`
+	Version   string `yaml:"version"`
+	Namespace string `yaml:"namespace"`
+	Values    string `yaml:"values"`
 }
 
 // GenerateK0sConfig generates K0s configuration from k0rdentd configuration
@@ -87,21 +87,6 @@ func GenerateK0sConfig(cfg *config.K0rdentdConfig) ([]byte, error) {
 			Name: "k0s",
 		},
 		Spec: K0sClusterSpec{
-			API: K0sAPISpec{
-				Address: cfg.K0s.API.Address,
-				Port:    cfg.K0s.API.Port,
-			},
-			Network: K0sNetworkSpec{
-				Provider:  cfg.K0s.Network.Provider,
-				PodCIDR:   cfg.K0s.Network.PodCIDR,
-				ServiceCIDR: cfg.K0s.Network.ServiceCIDR,
-			},
-			Storage: K0sStorageSpec{
-				Type: cfg.K0s.Storage.Type,
-				Etcd: K0sEtcdSpec{
-					PeerAddress: cfg.K0s.Storage.Etcd.PeerAddress,
-				},
-			},
 			Extensions: K0sExtensionsSpec{
 				Helm: K0sHelmExtensions{
 					Repositories: []K0sHelmRepository{
@@ -122,6 +107,36 @@ func GenerateK0sConfig(cfg *config.K0rdentdConfig) ([]byte, error) {
 				},
 			},
 		},
+	}
+
+	// Only populate API spec if fields are set
+	if cfg.K0s.API.Address != "" || cfg.K0s.API.Port != 0 {
+		k0sConfig.Spec.API = &K0sAPISpec{
+			Address: cfg.K0s.API.Address,
+			Port:    cfg.K0s.API.Port,
+		}
+	}
+
+	// Only populate Network spec if fields are set
+	if cfg.K0s.Network.Provider != "" || cfg.K0s.Network.PodCIDR != "" || cfg.K0s.Network.ServiceCIDR != "" {
+		k0sConfig.Spec.Network = &K0sNetworkSpec{
+			Provider:    cfg.K0s.Network.Provider,
+			PodCIDR:     cfg.K0s.Network.PodCIDR,
+			ServiceCIDR: cfg.K0s.Network.ServiceCIDR,
+		}
+	}
+
+	// Only populate Storage spec if fields are set
+	if cfg.K0s.Storage.Type != "" || cfg.K0s.Storage.Etcd.PeerAddress != "" {
+		storageSpec := &K0sStorageSpec{
+			Type: cfg.K0s.Storage.Type,
+		}
+		if cfg.K0s.Storage.Etcd.PeerAddress != "" {
+			storageSpec.Etcd = K0sEtcdSpec{
+				PeerAddress: cfg.K0s.Storage.Etcd.PeerAddress,
+			}
+		}
+		k0sConfig.Spec.Storage = storageSpec
 	}
 
 	// Marshal to YAML

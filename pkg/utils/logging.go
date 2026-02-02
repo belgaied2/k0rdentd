@@ -1,12 +1,21 @@
 package utils
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/sirupsen/logrus"
 )
 
 var log *logrus.Logger
+
+// PlainFormatter is a custom formatter that only returns the message
+type PlainFormatter struct{}
+
+func (f *PlainFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	// Return only the message followed by a newline
+	return []byte(fmt.Sprintf("%s\n", entry.Message)), nil
+}
 
 // SetupLogging configures logging based on debug flag
 func SetupLogging(debug bool) {
@@ -21,9 +30,7 @@ func SetupLogging(debug bool) {
 		log.SetOutput(os.Stdout)
 	} else {
 		log.SetLevel(logrus.InfoLevel)
-		log.SetFormatter(&logrus.TextFormatter{
-			FullTimestamp: true,
-		})
+		log.SetFormatter(new(PlainFormatter))
 		log.SetOutput(os.Stderr)
 	}
 }

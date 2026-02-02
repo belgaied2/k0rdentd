@@ -43,7 +43,7 @@ func CheckK0s() (*CheckResult, error) {
 	}
 
 	result.Version = version
-	utils.GetLogger().Infof("Found K0s in version %s", version)
+	utils.GetLogger().Infof("🎯 Found K0s in version %s", version)
 
 	return result, nil
 }
