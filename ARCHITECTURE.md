@@ -14,6 +14,8 @@ graph TD
     B -->|Execute| E[k0s binary]
     E -->|Deploy| F[K0s Cluster]
     E -->|Helm Extension| G[K0rdent]
+    B -.->|Retrieve Kubeconfig| H[k8sclient]
+    H -.->|client-go| F
 ```
 
 ## Component Design
@@ -118,6 +120,7 @@ sequenceDiagram
     participant CLI
     participant Config
     participant K0s
+    participant K8sClient
     participant Helm
 
     User->>CLI: k0rdentd install
@@ -126,8 +129,16 @@ sequenceDiagram
     CLI->>CLI: Generate /etc/k0s/k0s.yaml
     CLI->>K0s: Execute k0s install and k0s start
     K0s->>K0s: Wait for k0s status to be OK
+    CLI->>K0s: Retrieve kubeconfig via k0s kubeconfig admin
+    K0s-->>CLI: Kubeconfig content
+    CLI->>K8sClient: Create client from kubeconfig
+    K8sClient-->>CLI: Kubernetes clientset
+    CLI->>K8sClient: Check namespace exists
+    K8sClient->>K0s: API call
     K0s->>Helm: Install k0rdent via helm extension
     Helm->>Helm: Wait for Helm install to be OK
+    CLI->>K8sClient: Check deployments ready
+    K8sClient->>K0s: API call
     Helm-->>K0s: Installation complete
     K0s-->>CLI: Installation complete
     CLI-->>User: Success
@@ -140,6 +151,43 @@ sequenceDiagram
 - Provide meaningful error messages
 - Support dry-run mode for testing
 
+### 6. Kubernetes Client Architecture
+
+#### 6.1 K8sClient Package (`pkg/k8sclient`)
+
+The `k8sclient` package provides a Go-native way to interact with the Kubernetes cluster using the official `client-go` library, replacing all `kubectl` exec calls.
+
+**Key Components:**
+
+```go
+// Client wraps a Kubernetes clientset with helper methods
+type Client struct {
+    clientset kubernetes.Interface
+    config    *rest.Config
+}
+```
+
+**Kubeconfig Retrieval:**
+- After k0s installation, the admin kubeconfig is retrieved via `k0s kubeconfig admin` command
+- The kubeconfig is kept in memory (not written to disk) for security
+- A `client-go` clientset is created using `clientcmd.RESTConfigFromKubeConfig()`
+
+**Provided Operations:**
+- `NamespaceExists(name string) (bool, error)` - Check if a namespace exists
+- `GetDeploymentReadyReplicas(namespace, name string) (int32, error)` - Get deployment ready replica count
+- `GetDeploymentReplicas(namespace, name string) (int32, error)` - Get deployment total replica count
+- `GetPodPhases(namespace, labelSelector string) ([]corev1.PodPhase, error)` - Get pod phases by label selector
+- `PatchServiceType(namespace, name string, svcType corev1.ServiceType) error` - Patch service type
+- `GetServiceNodePort(namespace, name string) (int32, error)` - Get service NodePort
+- `ApplyIngress(ingress *networkingv1.Ingress) error` - Create or update an ingress
+- `GetDeploymentEnvVar(namespace, deployment, container, envVar string) (string, error)` - Extract env var from deployment
+
+**Benefits:**
+- Type-safe API operations instead of jsonpath parsing
+- Better error handling using `k8s.io/apimachinery/pkg/api/errors`
+- No dependency on kubectl binary being available
+- Easier to mock for testing using fake clientset
+
 ### 6. Testing Strategy
 
 #### Unit Tests (ginkgo/gomega)
@@ -147,6 +195,7 @@ sequenceDiagram
 - K0s configuration generation
 - CLI argument handling
 - Error scenarios
+- **K8sClient operations using fake clientset**
 
 #### Integration Tests
 - End-to-end installation testing
@@ -165,6 +214,11 @@ sequenceDiagram
 │   ├── config/             # Configuration management
 │   ├── generator/          # K0s config generation
 │   ├── installer/          # Installation logic
+│   ├── k8sclient/          # Kubernetes client-go wrapper
+│   │   ├── client.go       # Core client functionality
+│   │   └── k0s.go          # K0s-specific kubeconfig retrieval
+│   ├── k0s/                # K0s binary management
+│   ├── ui/                 # UI exposure functionality
 │   └── utils/              # Utility functions
 ├── internal/
 │   └── test/               # Test utilities

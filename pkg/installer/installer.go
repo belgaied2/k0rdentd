@@ -2,6 +2,7 @@ package installer
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,13 +11,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/belgaied2/k0rdentd/pkg/k8sclient"
 	"github.com/belgaied2/k0rdentd/pkg/utils"
 )
 
 // Installer handles the installation and uninstallation of K0s and K0rdent
 type Installer struct {
-	debug  bool
-	dryRun bool
+	debug     bool
+	dryRun    bool
+	k8sClient *k8sclient.Client
 }
 
 // NewInstaller creates a new installer instance
@@ -175,6 +178,16 @@ func (i *Installer) installK0s() error {
 	if err != nil {
 		return fmt.Errorf("Command \"k0s start\" was successful, but k0s never became ready")
 	}
+
+	// Initialize Kubernetes client after k0s is ready
+	utils.GetLogger().Debug("Initializing Kubernetes client...")
+	client, err := k8sclient.NewFromK0s()
+	if err != nil {
+		return fmt.Errorf("failed to create Kubernetes client: %w", err)
+	}
+	i.k8sClient = client
+	utils.GetLogger().Debug("Kubernetes client initialized successfully")
+
 	return nil
 }
 
@@ -230,15 +243,19 @@ func (i *Installer) waitForK0sReady() error {
 
 // waitForK0rdentInstalled waits for the k0rdent Helm chart to be installed
 func (i *Installer) waitForK0rdentInstalled() error {
+	ctx := context.Background()
 	return i.waitForWithSpinner(
 		15*time.Minute,
 		"Waiting for K0rdent to become ready",
 		func() (bool, error) {
 			// Check if kcm-system namespace exists
-			cmd := exec.Command("k0s", "kubectl", "get", "namespaces", "kcm-system", "-o", "jsonpath='{.status.phase}'")
-			_, err := cmd.Output()
+			exists, err := i.k8sClient.NamespaceExists(ctx, "kcm-system")
 			if err != nil {
 				utils.GetLogger().Debugf("kcm-system namespace check failed: %v", err)
+				return false, nil
+			}
+			if !exists {
+				utils.GetLogger().Debug("kcm-system namespace does not exist yet")
 				return false, nil
 			}
 
@@ -271,21 +288,13 @@ func (i *Installer) waitForK0rdentInstalled() error {
 
 // isHelmControllerRunning checks if helm-controller pod is running in kcm-system namespace
 func (i *Installer) isHelmControllerRunning() (bool, error) {
-	cmd := exec.Command("k0s", "kubectl", "get", "pods", "-n", "kcm-system",
-		"-l", "app=helm-controller", "-o", "jsonpath='{.items[*].status.phase}'")
-	output, err := cmd.Output()
-	if err != nil {
-		// If no pods found, that's fine - helm-controller is not running
-		return false, nil
-	}
-
-	phases := string(output)
-	// If any pod is in Running phase, helm-controller is still active
-	return strings.Contains(phases, "Running"), nil
+	ctx := context.Background()
+	return i.k8sClient.IsAnyPodRunning(ctx, "kcm-system", "app=helm-controller")
 }
 
 // areK0rdentDeploymentsReady checks if all required K0rdent deployments are ready
 func (i *Installer) areK0rdentDeploymentsReady() (bool, error) {
+	ctx := context.Background()
 	requiredDeployments := []string{
 		"k0rdent-cert-manager",
 		"k0rdent-cert-manager-cainjector",
@@ -297,31 +306,7 @@ func (i *Installer) areK0rdentDeploymentsReady() (bool, error) {
 		"k0rdent-regional-telemetry",
 	}
 
-	for _, deployment := range requiredDeployments {
-		cmd := exec.Command("k0s", "kubectl", "get", "deployment", deployment,
-			"-n", "kcm-system", "-o", "jsonpath='{.status.readyReplicas}/{.status.replicas}'")
-		output, err := cmd.Output()
-		if err != nil {
-			utils.GetLogger().Debugf("Deployment %s not found or not ready yet", deployment)
-			return false, nil
-		}
-
-		status := string(output)
-		status = strings.Trim(status, "'")
-		parts := strings.Split(status, "/")
-
-		if len(parts) != 2 {
-			utils.GetLogger().Debugf("Unexpected status format for deployment %s: %s", deployment, status)
-			return false, nil
-		}
-
-		if parts[0] != parts[1] {
-			utils.GetLogger().Debugf("Deployment %s not ready: %s", deployment, status)
-			return false, nil
-		}
-	}
-
-	return true, nil
+	return i.k8sClient.AreAllDeploymentsReady(ctx, "kcm-system", requiredDeployments)
 }
 
 // resetK0s resets K0s installation

@@ -1,14 +1,18 @@
 package ui
 
 import (
-	"bytes"
+	"context"
 	"fmt"
 	"net/http"
-	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/belgaied2/k0rdentd/pkg/k8sclient"
 	"github.com/belgaied2/k0rdentd/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -24,74 +28,58 @@ const (
 	k0rdentUIIngressPath = "/k0rdent-ui"
 )
 
+// getK8sClient creates a Kubernetes client from k0s kubeconfig
+func getK8sClient() (*k8sclient.Client, error) {
+	return k8sclient.NewFromK0s()
+}
+
 // DeploymentReady checks if k0rdent UI deployment is ready
 func DeploymentReady() (bool, error) {
-	cmd := exec.Command("k0s", "kubectl", "get", "deployment",
-		"-n", k0rdentUINamespace,
-		k0rdentUIDeploymentName,
-		"-o", "jsonpath='{.status.readyReplicas}'")
-	output, err := cmd.Output()
+	ctx := context.Background()
+	client, err := getK8sClient()
+	if err != nil {
+		return false, fmt.Errorf("failed to create Kubernetes client: %w", err)
+	}
+
+	readyReplicas, err := client.GetDeploymentReadyReplicas(ctx, k0rdentUINamespace, k0rdentUIDeploymentName)
 	if err != nil {
 		return false, fmt.Errorf("failed to check k0rdent UI deployment: %w", err)
 	}
 
-	readyReplicas := strings.Trim(strings.TrimSpace(string(output)), "'")
-	return readyReplicas != "" && readyReplicas != "0" && readyReplicas != "<none>", nil
+	return readyReplicas > 0, nil
 }
 
 // GetBasicAuthPassword extracts the Basic Auth password from the k0rdent UI deployment
 func GetBasicAuthPassword() (string, error) {
-	cmd := exec.Command("k0s", "kubectl", "get", "deployment",
-		k0rdentUIDeploymentName,
-		"-n", k0rdentUINamespace,
-		"-o", "jsonpath='{.spec.template.spec.containers[?(@.name==\"k0rdent-ui\")].env[?(@.name==\"BASIC_AUTH_PASSWORD\")].value}'")
-	output, err := cmd.Output()
+	ctx := context.Background()
+	client, err := getK8sClient()
 	if err != nil {
-		return "", fmt.Errorf("failed to get Basic Auth password: %w", err)
+		return "", fmt.Errorf("failed to create Kubernetes client: %w", err)
 	}
 
-	password := strings.Trim(strings.TrimSpace(string(output)), "'")
-	return password, nil
+	return client.GetDeploymentEnvVar(ctx, k0rdentUINamespace, k0rdentUIDeploymentName, "k0rdent-ui", "BASIC_AUTH_PASSWORD")
 }
 
 // ServiceExists checks if k0rdent UI service exists
 func ServiceExists() (bool, error) {
-	cmd := exec.Command("k0s", "kubectl", "get", "service",
-		"-n", k0rdentUINamespace,
-		k0rdentUIServiceName,
-		"-o", "jsonpath='{.metadata.name}'")
-	output, err := cmd.Output()
+	ctx := context.Background()
+	client, err := getK8sClient()
 	if err != nil {
-		// If error is "NotFound", service doesn't exist
-		if strings.Contains(string(err.(*exec.ExitError).Stderr), "NotFound") {
-			return false, nil
-		}
-		return false, fmt.Errorf("failed to check k0rdent UI service: %w", err)
+		return false, fmt.Errorf("failed to create Kubernetes client: %w", err)
 	}
 
-	name := strings.Trim(strings.TrimSpace(string(output)), "'")
-	return name == k0rdentUIServiceName, nil
+	return client.ServiceExists(ctx, k0rdentUINamespace, k0rdentUIServiceName)
 }
 
 // GetNodePort extracts the NodePort from the k0rdent UI service
-func GetNodePort() (int, error) {
-	cmd := exec.Command("k0s", "kubectl", "get", "svc",
-		k0rdentUIServiceName,
-		"-n", k0rdentUINamespace,
-		"-o", "jsonpath='{.spec.ports[0].nodePort}'")
-	output, err := cmd.Output()
+func GetNodePort() (int32, error) {
+	ctx := context.Background()
+	client, err := getK8sClient()
 	if err != nil {
-		return 0, fmt.Errorf("failed to get k0rdent UI service NodePort: %w", err)
+		return 0, fmt.Errorf("failed to create Kubernetes client: %w", err)
 	}
 
-	nodePortStr := strings.Trim(strings.TrimSpace(string(output)), "'")
-	var nodePort int
-	_, err = fmt.Sscanf(nodePortStr, "%d", &nodePort)
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse NodePort value: %w", err)
-	}
-
-	return nodePort, nil
+	return client.GetServiceNodePort(ctx, k0rdentUINamespace, k0rdentUIServiceName)
 }
 
 // CreateIngress creates an ingress to expose k0rdent UI service
@@ -100,45 +88,53 @@ func CreateIngress(ips []string) error {
 		return fmt.Errorf("no IPs provided for ingress")
 	}
 
-	// Build ingress YAML spec
-	ingressYAML := buildIngressYAML(ips)
-
-	// Apply using kubectl
-	cmd := exec.Command("k0s", "kubectl", "apply", "-f", "-")
-	cmd.Stdin = bytes.NewReader([]byte(ingressYAML))
-	output, err := cmd.CombinedOutput()
+	ctx := context.Background()
+	client, err := getK8sClient()
 	if err != nil {
-		return fmt.Errorf("failed to apply ingress: %w. output: %s", err, string(output))
+		return fmt.Errorf("failed to create Kubernetes client: %w", err)
 	}
 
-	utils.GetLogger().Infof("Created ingress for k0rdent UI")
-	return nil
+	ingress := buildIngressObject(ips)
+	return client.ApplyIngress(ctx, ingress)
 }
 
-// buildIngressYAML builds a YAML ingress specification
-func buildIngressYAML(ips []string) string {
-	ingressTemplate := `apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: ` + k0rdentUIIngressName + `
-  namespace: ` + k0rdentUINamespace + `
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-spec:
-  ingressClassName: nginx
-  rules:
-    - http:
-        paths:
-          - path: ` + k0rdentUIIngressPath + `
-            pathType: Prefix
-            backend:
-              service:
-                name: ` + k0rdentUIServiceName + `
-                port:
-                  number: 80
-`
-
-	return ingressTemplate
+// buildIngressObject builds a Kubernetes Ingress object
+func buildIngressObject(ips []string) *networkingv1.Ingress {
+	pathType := networkingv1.PathTypePrefix
+	return &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      k0rdentUIIngressName,
+			Namespace: k0rdentUINamespace,
+			Annotations: map[string]string{
+				"nginx.ingress.kubernetes.io/rewrite-target": "/",
+			},
+		},
+		Spec: networkingv1.IngressSpec{
+			IngressClassName: ptr.To("nginx"),
+			Rules: []networkingv1.IngressRule{
+				{
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{
+								{
+									Path:     k0rdentUIIngressPath,
+									PathType: &pathType,
+									Backend: networkingv1.IngressBackend{
+										Service: &networkingv1.IngressServiceBackend{
+											Name: k0rdentUIServiceName,
+											Port: networkingv1.ServiceBackendPort{
+												Number: 80,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 }
 
 // TestUIAccess tests if k0rdent UI is accessible on the given IP
@@ -205,15 +201,16 @@ func ExposeUI() error {
 	utils.GetLogger().Info("k0rdent UI deployment and service are ready")
 
 	// Modify the existing SVC to make it NodePort instead of ClusterIP
-	cmd := exec.Command("k0s", "kubectl", "patch", "svc",
-		k0rdentUIServiceName,
-		"-n", k0rdentUINamespace,
-		"-p", `{"spec":{"type":"NodePort"}}`)
-	output, err := cmd.CombinedOutput()
+	client, err := getK8sClient()
 	if err != nil {
-		utils.GetLogger().Warnf("Failed to modify service type to NodePort: %v. output: %s", err, string(output))
+		utils.GetLogger().Warnf("Failed to create Kubernetes client: %v", err)
 	} else {
-		utils.GetLogger().Info("Modified k0rdent UI service to NodePort type")
+		err = client.PatchServiceType(context.Background(), k0rdentUINamespace, k0rdentUIServiceName, corev1.ServiceTypeNodePort)
+		if err != nil {
+			utils.GetLogger().Warnf("Failed to modify service type to NodePort: %v", err)
+		} else {
+			utils.GetLogger().Info("Modified k0rdent UI service to NodePort type")
+		}
 	}
 
 	// Get NodePort for the service
