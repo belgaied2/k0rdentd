@@ -3,7 +3,7 @@
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-K0rdentd is a CLI tool that automates the deployment of K0s and K0rdent on a VM. It follows a similar pattern to RancherD but simplifies the architecture by directly configuring K0s and using its built-in helm extension mechanism to install K0rdent.
+K0rdentd is a CLI tool that automates the deployment of K0s and K0rdent on a VM. It simplifies significantly deployments of K0rdent by directly configuring K0s and using its built-in helm extension mechanism to install K0rdent.
 
 ## Overview
 

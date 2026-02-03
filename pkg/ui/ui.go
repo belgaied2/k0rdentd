@@ -249,10 +249,10 @@ func ExposeUI() error {
 	uniqueIPs := removeDuplicateIPs(allIPs)
 
 	if len(uniqueIPs) == 0 {
-		fmt.Println("⚠️  Warning: Could not detect any IP addresses")
-		fmt.Println("   You can use the following command to port-forward to k0rdent UI:")
-		fmt.Println("   k0s kubectl port-forward -n kcm-system svc/k0rdent-k0rdent-ui 8080:80")
-		fmt.Println("   Then access at: http://localhost:8080/k0rdent-ui")
+		utils.GetLogger().Info("⚠️  Warning: Could not detect any IP addresses")
+		utils.GetLogger().Info("   You can use the following command to port-forward to k0rdent UI:")
+		utils.GetLogger().Info("   k0s kubectl port-forward -n kcm-system svc/k0rdent-k0rdent-ui 8080:80")
+		utils.GetLogger().Info("   Then access at: http://localhost:8080/k0rdent-ui")
 		return nil
 	}
 
@@ -264,45 +264,45 @@ func ExposeUI() error {
 	// Test UI access on primary IP
 	primaryIP := uniqueIPs[0]
 	if TestUIAccess(primaryIP) {
-		fmt.Printf("✅ Successfully tested k0rdent UI access on %s\n", primaryIP)
+		utils.GetLogger().Infof("✅ Successfully tested k0rdent UI access on %s\n", primaryIP)
 	} else {
-		fmt.Printf("⚠️  Warning: Could not access k0rdent UI on %s\n", primaryIP)
-		fmt.Printf("   The ingress has been created, but the UI may not be ready yet\n")
+		utils.GetLogger().Infof("⚠️  Warning: Could not access k0rdent UI on %s\n", primaryIP)
+		utils.GetLogger().Infof("   The ingress has been created, but the UI may not be ready yet\n")
 	}
 
 	// Print all possible access URLs
-	fmt.Println("\n🌐 If an Ingress Controller is installed, K0rdent UI is accessible at:")
+	utils.GetLogger().Info("\n🌐 If an Ingress Controller is installed, K0rdent UI is accessible at:")
 	for _, ip := range uniqueIPs {
 		url := fmt.Sprintf("http://%s%s", ip, k0rdentUIIngressPath)
-		fmt.Printf("   %s\n", url)
+		utils.GetLogger().Infof("   %s\n", url)
 	}
 
 	// Add NodePort access URLs if available
 	if nodePort > 0 {
-		fmt.Println("\n🔌 NodePort access (requires firewall rules):")
+		utils.GetLogger().Info("\n🔌 NodePort access (requires firewall rules):")
 		for _, ip := range uniqueIPs {
 			url := fmt.Sprintf("http://%s:%d", ip, nodePort)
-			fmt.Printf("   %s\n", url)
+			utils.GetLogger().Infof("   %s\n", url)
 		}
-		fmt.Println("\n⚠️  Note: Firewall rules may need to be configured to allow access to the NodePort")
+		utils.GetLogger().Info("\n⚠️  Note: Firewall rules may need to be configured to allow access to the NodePort")
 	}
 
 	// Suggest port-forwarding alternative
-	fmt.Println("\n💡 Alternatively, you can use port-forwarding:")
-	fmt.Println("   k0s kubectl port-forward -n kcm-system svc/k0rdent-k0rdent-ui 8080:3000")
-	fmt.Println("   Then access at: http://localhost:8080")
+	utils.GetLogger().Info("\n💡 Alternatively, you can use port-forwarding:")
+	utils.GetLogger().Info("   k0s kubectl port-forward -n kcm-system svc/k0rdent-k0rdent-ui 8080:3000")
+	utils.GetLogger().Info("   Then access at: http://localhost:8080")
 
 	// Get and display Basic Auth credentials
 	password, err := GetBasicAuthPassword()
 	if err != nil {
 		utils.GetLogger().Warnf("Failed to get Basic Auth password: %v", err)
-		fmt.Println("\n🔐 Basic Auth credentials: Not available")
+		utils.GetLogger().Info("\n🔐 Basic Auth credentials: Not available")
 	} else {
 		// Default username is typically "admin" for k0rdent
 		username := "admin"
-		fmt.Printf("\n🔐 Basic Auth credentials:\n")
-		fmt.Printf("   Username: %s\n", username)
-		fmt.Printf("   Password: %s\n", password)
+		utils.GetLogger().Infof("\n🔐 Basic Auth credentials:\n")
+		utils.GetLogger().Infof("   Username: %s\n", username)
+		utils.GetLogger().Infof("   Password: %s\n", password)
 	}
 
 	return nil

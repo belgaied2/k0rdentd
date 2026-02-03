@@ -59,7 +59,7 @@ func installAction(c *cli.Context) error {
 
 	// If k0s is not installed, install it
 	if !k0sCheck.Installed {
-		fmt.Println("k0s binary not found, installing...")
+		utils.GetLogger().Info("k0s binary not found, installing...")
 		if err := k0s.InstallK0s(); err != nil {
 			return fmt.Errorf("failed to install k0s: %w", err)
 		}
@@ -81,7 +81,7 @@ func installAction(c *cli.Context) error {
 		return fmt.Errorf("installation failed: %w", err)
 	}
 
-	fmt.Println("✅ K0s and K0rdent installed successfully!")
+	utils.GetLogger().Info("✅ K0s and K0rdent installed successfully!")
 
 	// Expose k0rdent UI
 	if err := ui.ExposeUI(); err != nil {

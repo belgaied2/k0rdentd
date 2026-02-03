@@ -131,7 +131,7 @@ func DefaultConfig() *K0rdentdConfig {
 			Version: "1.2.2",
 			Helm: K0rdentHelmConfig{
 				Chart:     "oci://registry.mirantis.com/k0rdent-enterprise/charts/k0rdent-enterprise",
-				Namespace: "k0rdent-system",
+				Namespace: "kcm-system",
 				Values: map[string]interface{}{
 					"replicaCount": 1,
 					"k0rdent-ui": map[string]interface{}{

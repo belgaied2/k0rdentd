@@ -70,10 +70,10 @@ func (i *Installer) waitForWithSpinner(
 // Install installs K0s and K0rdent using the generated configuration
 func (i *Installer) Install(k0sConfig []byte) error {
 	if i.dryRun {
-		fmt.Printf("📝 Dry run mode - showing what would be done:")
-		fmt.Printf("1. Write K0s configuration to /etc/k0s/k0s.yaml")
-		fmt.Printf("2. Execute: k0s install --config /etc/k0s/k0s.yaml")
-		fmt.Printf("3. Start K0s service")
+		utils.GetLogger().Infof("📝 Dry run mode - showing what would be done:")
+		utils.GetLogger().Infof("1. Write K0s configuration to /etc/k0s/k0s.yaml")
+		utils.GetLogger().Infof("2. Execute: k0s install --config /etc/k0s/k0s.yaml")
+		utils.GetLogger().Infof("3. Start K0s service")
 		return nil
 	}
 
@@ -98,9 +98,9 @@ func (i *Installer) Install(k0sConfig []byte) error {
 // Uninstall uninstalls K0s and K0rdent
 func (i *Installer) Uninstall() error {
 	if i.dryRun {
-		fmt.Printf("📝 Dry run mode - showing what would be done:")
-		fmt.Printf("1. Execute: k0s reset")
-		fmt.Printf("2. Remove K0s configuration files")
+		utils.GetLogger().Infof("📝 Dry run mode - showing what would be done:")
+		utils.GetLogger().Infof("1. Execute: k0s reset")
+		utils.GetLogger().Infof("2. Remove K0s configuration files")
 		return nil
 	}
 
@@ -224,7 +224,7 @@ func (i *Installer) stopK0s() error {
 	}
 
 	if i.debug {
-		fmt.Printf("✅ K0s stopped successfully")
+		utils.GetLogger().Infof("✅ K0s stopped successfully")
 	}
 
 	return nil
@@ -326,7 +326,7 @@ func (i *Installer) resetK0s() error {
 	}
 
 	if i.debug {
-		fmt.Printf("✅ K0s reset successfully")
+		utils.GetLogger().Infof("✅ K0s reset successfully")
 	}
 
 	return nil
