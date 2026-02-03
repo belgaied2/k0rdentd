@@ -375,7 +375,6 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 - [K0s](https://k0sproject.io/) - Kubernetes distribution
 - [K0rdent](https://docs.k0rdent.io/) - Kubernetes management platform
-- [RancherD](https://github.com/harvester/rancherd) - Inspiration for the architecture
 - [urfave/cli](https://github.com/urfave/cli) - CLI framework
 - [logrus](https://github.com/sirupsen/logrus) - Logging library
 
