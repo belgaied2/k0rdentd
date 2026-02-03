@@ -33,8 +33,12 @@ var InstallCommand = &cli.Command{
 }
 
 func installAction(c *cli.Context) error {
-	// Load configuration
-	cfg, err := config.LoadConfig(c.String("config-file"))
+	// Load configuration with fallback logic
+	cfg, err := config.LoadConfigWithFallback(
+		c.String("config-file"),
+		"/etc/k0rdentd/k0rdentd.yaml",
+		c.IsSet("config-file"),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}

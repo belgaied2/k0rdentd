@@ -80,6 +80,29 @@ func LoadConfig(path string) (*K0rdentdConfig, error) {
 	return &cfg, nil
 }
 
+// LoadConfigWithFallback loads configuration with fallback logic:
+// 1. If explicitPath is provided and non-empty, use it (fail if invalid)
+// 2. If defaultPath exists and is non-empty, use it
+// 3. Otherwise, return DefaultConfig()
+func LoadConfigWithFallback(explicitPath string, defaultPath string, explicitSet bool) (*K0rdentdConfig, error) {
+	// Case 1: -c flag is explicitly provided - must use it and fail if anything is wrong
+	if explicitSet && explicitPath != "" {
+		return LoadConfig(explicitPath)
+	}
+
+	// Case 2: Check if default config file exists and is non-empty
+	if defaultPath != "" {
+		info, err := os.Stat(defaultPath)
+		if err == nil && info.Size() > 0 {
+			// File exists and is non-empty, try to load it
+			return LoadConfig(defaultPath)
+		}
+	}
+
+	// Case 3: No explicit path and no valid default file - use defaults
+	return DefaultConfig(), nil
+}
+
 // MarshalConfig marshals configuration to YAML
 func MarshalConfig(cfg *K0rdentdConfig) ([]byte, error) {
 	return yaml.Marshal(cfg)
@@ -103,8 +126,9 @@ func WriteConfigFile(path string, data []byte) error {
 // DefaultConfig returns a default configuration
 func DefaultConfig() *K0rdentdConfig {
 	return &K0rdentdConfig{
+		K0s: K0sConfig{},
 		K0rdent: K0rdentConfig{
-			Version: "v1.2.2",
+			Version: "1.2.2",
 			Helm: K0rdentHelmConfig{
 				Chart:     "oci://registry.mirantis.com/k0rdent-enterprise/charts/k0rdent-enterprise",
 				Namespace: "k0rdent-system",
@@ -116,8 +140,6 @@ func DefaultConfig() *K0rdentdConfig {
 				},
 			},
 		},
-		Debug:    false,
-		LogLevel: "info",
 	}
 }
 

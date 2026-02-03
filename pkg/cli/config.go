@@ -1,10 +1,11 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/belgaied2/k0rdentd/pkg/config"
 	"github.com/belgaied2/k0rdentd/pkg/utils"
 	"github.com/urfave/cli/v2"
-	"fmt"
 )
 
 var ConfigCommand = &cli.Command{
@@ -24,9 +25,9 @@ var ConfigCommand = &cli.Command{
 			Action: showConfigAction,
 		},
 		{
-			Name:    "init",
-			Usage:   "Create default configuration file",
-			Action:  initConfigAction,
+			Name:   "init",
+			Usage:  "Create default configuration file",
+			Action: initConfigAction,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:    "output",
@@ -40,7 +41,11 @@ var ConfigCommand = &cli.Command{
 }
 
 func validateConfigAction(c *cli.Context) error {
-	_, err := config.LoadConfig(c.String("config-file"))
+	_, err := config.LoadConfigWithFallback(
+		c.String("config-file"),
+		"/etc/k0rdentd/k0rdentd.yaml",
+		c.IsSet("config-file"),
+	)
 	if err != nil {
 		return fmt.Errorf("configuration is invalid: %w", err)
 	}
@@ -49,7 +54,11 @@ func validateConfigAction(c *cli.Context) error {
 }
 
 func showConfigAction(c *cli.Context) error {
-	cfg, err := config.LoadConfig(c.String("config-file"))
+	cfg, err := config.LoadConfigWithFallback(
+		c.String("config-file"),
+		"/etc/k0rdentd/k0rdentd.yaml",
+		c.IsSet("config-file"),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
