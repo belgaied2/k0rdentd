@@ -7,6 +7,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const defaultK0rdentHelmReleaseName = "kcm"
+
 // K0sClusterConfig represents the K0s cluster configuration structure
 type K0sClusterConfig struct {
 	APIVersion string `yaml:"apiVersion"`
@@ -97,7 +99,7 @@ func GenerateK0sConfig(cfg *config.K0rdentdConfig) ([]byte, error) {
 					},
 					Charts: []K0sHelmChart{
 						{
-							Name:      "k0rdent",
+							Name:      defaultK0rdentHelmReleaseName,
 							Chartname: cfg.K0rdent.Helm.Chart,
 							Version:   cfg.K0rdent.Version,
 							Namespace: cfg.K0rdent.Helm.Namespace,
