@@ -49,8 +49,52 @@ type EtcdConfig struct {
 
 // K0rdentConfig represents K0rdent-specific configuration
 type K0rdentConfig struct {
-	Version string            `yaml:"version"`
-	Helm    K0rdentHelmConfig `yaml:"helm"`
+	Version     string            `yaml:"version"`
+	Helm        K0rdentHelmConfig `yaml:"helm"`
+	Credentials CredentialsConfig `yaml:"credentials,omitempty"`
+}
+
+// CredentialsConfig holds credentials for all cloud providers
+type CredentialsConfig struct {
+	AWS       []AWSCredential       `yaml:"aws,omitempty"`
+	Azure     []AzureCredential     `yaml:"azure,omitempty"`
+	OpenStack []OpenStackCredential `yaml:"openstack,omitempty"`
+}
+
+// HasCredentials returns true if any credentials are configured
+func (c CredentialsConfig) HasCredentials() bool {
+	return len(c.AWS) > 0 || len(c.Azure) > 0 || len(c.OpenStack) > 0
+}
+
+// AWSCredential represents AWS credentials
+type AWSCredential struct {
+	Name            string `yaml:"name"`
+	Region          string `yaml:"region"`
+	AccessKeyID     string `yaml:"accessKeyID"`
+	SecretAccessKey string `yaml:"secretAccessKey"`
+	SessionToken    string `yaml:"sessionToken,omitempty"` // Optional: for MFA or SSO
+}
+
+// AzureCredential represents Azure Service Principal credentials
+type AzureCredential struct {
+	Name           string `yaml:"name"`
+	SubscriptionID string `yaml:"subscriptionID"`
+	ClientID       string `yaml:"clientID"`
+	ClientSecret   string `yaml:"clientSecret"`
+	TenantID       string `yaml:"tenantID"`
+}
+
+// OpenStackCredential represents OpenStack credentials
+type OpenStackCredential struct {
+	Name                        string `yaml:"name"`
+	AuthURL                     string `yaml:"authURL"`
+	Region                      string `yaml:"region"`
+	ApplicationCredentialID     string `yaml:"applicationCredentialID,omitempty"`
+	ApplicationCredentialSecret string `yaml:"applicationCredentialSecret,omitempty"`
+	Username                    string `yaml:"username,omitempty"`
+	Password                    string `yaml:"password,omitempty"`
+	ProjectName                 string `yaml:"projectName,omitempty"`
+	DomainName                  string `yaml:"domainName,omitempty"`
 }
 
 // K0rdentHelmConfig represents K0rdent helm chart configuration

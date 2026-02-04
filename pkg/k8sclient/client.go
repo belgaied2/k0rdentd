@@ -10,14 +10,18 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
 // Client wraps a Kubernetes clientset and provides helper methods
 type Client struct {
-	clientset kubernetes.Interface
-	config    *rest.Config
+	clientset     kubernetes.Interface
+	dynamicClient dynamic.Interface
+	config        *rest.Config
 }
 
 // New creates a new Client from a REST config
@@ -27,9 +31,15 @@ func New(config *rest.Config) (*Client, error) {
 		return nil, fmt.Errorf("failed to create kubernetes clientset: %w", err)
 	}
 
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create dynamic client: %w", err)
+	}
+
 	return &Client{
-		clientset: clientset,
-		config:    config,
+		clientset:     clientset,
+		dynamicClient: dynamicClient,
+		config:        config,
 	}, nil
 }
 
@@ -37,6 +47,14 @@ func New(config *rest.Config) (*Client, error) {
 func NewFromClientset(clientset kubernetes.Interface) *Client {
 	return &Client{
 		clientset: clientset,
+	}
+}
+
+// NewFromClientsetAndDynamic creates a new Client from existing clientsets (useful for testing)
+func NewFromClientsetAndDynamic(clientset kubernetes.Interface, dynamicClient dynamic.Interface) *Client {
+	return &Client{
+		clientset:     clientset,
+		dynamicClient: dynamicClient,
 	}
 }
 
@@ -236,4 +254,226 @@ func (c *Client) AreAllDeploymentsReady(ctx context.Context, namespace string, d
 		}
 	}
 	return true, nil
+}
+
+// CreateSecret creates a Kubernetes Secret
+func (c *Client) CreateSecret(ctx context.Context, secret *corev1.Secret) error {
+	_, err := c.clientset.CoreV1().Secrets(secret.Namespace).Create(ctx, secret, metav1.CreateOptions{})
+	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			// Secret already exists, update it
+			_, err = c.clientset.CoreV1().Secrets(secret.Namespace).Update(ctx, secret, metav1.UpdateOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to update secret %s/%s: %w", secret.Namespace, secret.Name, err)
+			}
+			return nil
+		}
+		return fmt.Errorf("failed to create secret %s/%s: %w", secret.Namespace, secret.Name, err)
+	}
+	return nil
+}
+
+// CreateAWSClusterStaticIdentity creates an AWSClusterStaticIdentity custom resource
+func (c *Client) CreateAWSClusterStaticIdentity(ctx context.Context, name, secretRef, namespace string) error {
+	gvr := schema.GroupVersionResource{
+		Group:    "infrastructure.cluster.x-k8s.io",
+		Version:  "v1beta2",
+		Resource: "awsclusterstaticidentities",
+	}
+
+	identity := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta2",
+			"kind":       "AWSClusterStaticIdentity",
+			"metadata": map[string]interface{}{
+				"name":      name,
+				"namespace": namespace,
+				"labels": map[string]interface{}{
+					"k0rdent.mirantis.com/component": "kcm",
+				},
+			},
+			"spec": map[string]interface{}{
+				"secretRef": secretRef,
+				"allowedNamespaces": map[string]interface{}{
+					"selector": map[string]interface{}{
+						"matchLabels": map[string]interface{}{},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := c.dynamicClient.Resource(gvr).Namespace(namespace).Create(ctx, identity, metav1.CreateOptions{})
+	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			// Resource already exists, update it
+			existing, err := c.dynamicClient.Resource(gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to get existing AWSClusterStaticIdentity %s/%s: %w", namespace, name, err)
+			}
+			identity.SetResourceVersion(existing.GetResourceVersion())
+			_, err = c.dynamicClient.Resource(gvr).Namespace(namespace).Update(ctx, identity, metav1.UpdateOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to update AWSClusterStaticIdentity %s/%s: %w", namespace, name, err)
+			}
+			return nil
+		}
+		return fmt.Errorf("failed to create AWSClusterStaticIdentity %s/%s: %w", namespace, name, err)
+	}
+	return nil
+}
+
+// CreateAzureClusterIdentity creates an AzureClusterIdentity custom resource
+func (c *Client) CreateAzureClusterIdentity(ctx context.Context, name, clientID, tenantID, secretName, namespace string) error {
+	gvr := schema.GroupVersionResource{
+		Group:    "infrastructure.cluster.x-k8s.io",
+		Version:  "v1beta1",
+		Resource: "azureclusteridentities",
+	}
+
+	identity := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "infrastructure.cluster.x-k8s.io/v1beta1",
+			"kind":       "AzureClusterIdentity",
+			"metadata": map[string]interface{}{
+				"name":      name,
+				"namespace": namespace,
+				"labels": map[string]interface{}{
+					"clusterctl.cluster.x-k8s.io/move-hierarchy": "true",
+					"k0rdent.mirantis.com/component":             "kcm",
+				},
+			},
+			"spec": map[string]interface{}{
+				"type":              "ServicePrincipal",
+				"clientID":          clientID,
+				"tenantID":          tenantID,
+				"allowedNamespaces": map[string]interface{}{},
+				"clientSecret": map[string]interface{}{
+					"name":      secretName,
+					"namespace": namespace,
+				},
+			},
+		},
+	}
+
+	_, err := c.dynamicClient.Resource(gvr).Namespace(namespace).Create(ctx, identity, metav1.CreateOptions{})
+	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			// Resource already exists, update it
+			existing, err := c.dynamicClient.Resource(gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to get existing AzureClusterIdentity %s/%s: %w", namespace, name, err)
+			}
+			identity.SetResourceVersion(existing.GetResourceVersion())
+			_, err = c.dynamicClient.Resource(gvr).Namespace(namespace).Update(ctx, identity, metav1.UpdateOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to update AzureClusterIdentity %s/%s: %w", namespace, name, err)
+			}
+			return nil
+		}
+		return fmt.Errorf("failed to create AzureClusterIdentity %s/%s: %w", namespace, name, err)
+	}
+	return nil
+}
+
+// CreateCredential creates a k0rdent Credential custom resource
+func (c *Client) CreateCredential(ctx context.Context, name, description, identityKind, identityName, identityAPIVersion, namespace string) error {
+	gvr := schema.GroupVersionResource{
+		Group:    "k0rdent.mirantis.com",
+		Version:  "v1beta1",
+		Resource: "credentials",
+	}
+
+	credential := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "k0rdent.mirantis.com/v1beta1",
+			"kind":       "Credential",
+			"metadata": map[string]interface{}{
+				"name":      name,
+				"namespace": namespace,
+				"labels": map[string]interface{}{
+					"k0rdent.mirantis.com/component": "kcm",
+				},
+			},
+			"spec": map[string]interface{}{
+				"description": description,
+				"identityRef": map[string]interface{}{
+					"apiVersion": identityAPIVersion,
+					"kind":       identityKind,
+					"name":       identityName,
+					"namespace":  namespace,
+				},
+			},
+		},
+	}
+
+	_, err := c.dynamicClient.Resource(gvr).Namespace(namespace).Create(ctx, credential, metav1.CreateOptions{})
+	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			// Resource already exists, update it
+			existing, err := c.dynamicClient.Resource(gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to get existing Credential %s/%s: %w", namespace, name, err)
+			}
+			credential.SetResourceVersion(existing.GetResourceVersion())
+			_, err = c.dynamicClient.Resource(gvr).Namespace(namespace).Update(ctx, credential, metav1.UpdateOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to update Credential %s/%s: %w", namespace, name, err)
+			}
+			return nil
+		}
+		return fmt.Errorf("failed to create Credential %s/%s: %w", namespace, name, err)
+	}
+	return nil
+}
+
+// CreateOpenStackCredential creates a k0rdent Credential for OpenStack (references Secret directly)
+func (c *Client) CreateOpenStackCredential(ctx context.Context, name, description, secretName, namespace string) error {
+	gvr := schema.GroupVersionResource{
+		Group:    "k0rdent.mirantis.com",
+		Version:  "v1beta1",
+		Resource: "credentials",
+	}
+
+	credential := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "k0rdent.mirantis.com/v1beta1",
+			"kind":       "Credential",
+			"metadata": map[string]interface{}{
+				"name":      name,
+				"namespace": namespace,
+				"labels": map[string]interface{}{
+					"k0rdent.mirantis.com/component": "kcm",
+				},
+			},
+			"spec": map[string]interface{}{
+				"description": description,
+				"identityRef": map[string]interface{}{
+					"apiVersion": "v1",
+					"kind":       "Secret",
+					"name":       secretName,
+					"namespace":  namespace,
+				},
+			},
+		},
+	}
+
+	_, err := c.dynamicClient.Resource(gvr).Namespace(namespace).Create(ctx, credential, metav1.CreateOptions{})
+	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			// Resource already exists, update it
+			existing, err := c.dynamicClient.Resource(gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to get existing Credential %s/%s: %w", namespace, name, err)
+			}
+			credential.SetResourceVersion(existing.GetResourceVersion())
+			_, err = c.dynamicClient.Resource(gvr).Namespace(namespace).Update(ctx, credential, metav1.UpdateOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to update Credential %s/%s: %w", namespace, name, err)
+			}
+			return nil
+		}
+		return fmt.Errorf("failed to create Credential %s/%s: %w", namespace, name, err)
+	}
+	return nil
 }

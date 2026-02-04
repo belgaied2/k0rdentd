@@ -77,7 +77,7 @@ func installAction(c *cli.Context) error {
 		c.Bool("dry-run"),
 	)
 
-	if err := installer.Install(k0sConfig); err != nil {
+	if err := installer.Install(k0sConfig, &cfg.K0rdent); err != nil {
 		return fmt.Errorf("installation failed: %w", err)
 	}
 

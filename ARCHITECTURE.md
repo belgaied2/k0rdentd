@@ -188,6 +188,51 @@ type Client struct {
 - No dependency on kubectl binary being available
 - Easier to mock for testing using fake clientset
 
+### 6.2 Credentials Package (`pkg/credentials`)
+
+The `credentials` package manages the creation of cloud provider credentials for k0rdent. It creates the necessary Kubernetes objects (Secrets, Identity objects, and k0rdent Credentials) based on user configuration.
+
+**Supported Cloud Providers:**
+- **AWS**: Creates Secret, AWSClusterStaticIdentity, and Credential objects
+- **Azure**: Creates Secret, AzureClusterIdentity, and Credential objects
+- **OpenStack**: Creates Secret and Credential objects (no Identity object needed)
+
+**Credential Creation Flow:**
+
+```mermaid
+graph TD
+    A[User Config] -->|Parse| B[CredentialsConfig]
+    B -->|For each AWS cred| C[Create Secret]
+    C -->|Reference| D[Create AWSClusterStaticIdentity]
+    D -->|Reference| E[Create Credential]
+    B -->|For each Azure cred| F[Create Secret]
+    F -->|Reference| G[Create AzureClusterIdentity]
+    G -->|Reference| H[Create Credential]
+    B -->|For each OpenStack cred| I[Create Secret]
+    I -->|Reference| J[Create Credential]
+```
+
+**Key Components:**
+
+```go
+// Manager handles creation of cloud provider credentials
+type Manager struct {
+    client *k8sclient.Client
+}
+
+// NewManager creates a new credentials manager
+func NewManager(client *k8sclient.Client) *Manager
+
+// CreateAll creates all configured credentials
+func (m *Manager) CreateAll(ctx context.Context, cfg config.CredentialsConfig) error
+```
+
+**Security Considerations:**
+- All sensitive data is stored in Kubernetes Secrets
+- Credential values are never logged
+- Credentials are created in the k0rdent namespace (kcm-system)
+- Identity objects use `allowedNamespaces` to control access
+
 ### 6. Testing Strategy
 
 #### Unit Tests (ginkgo/gomega)
@@ -214,6 +259,7 @@ type Client struct {
 │   ├── config/             # Configuration management
 │   ├── generator/          # K0s config generation
 │   ├── installer/          # Installation logic
+│   ├── credentials/        # Cloud provider credentials management
 │   ├── k8sclient/          # Kubernetes client-go wrapper
 │   │   ├── client.go       # Core client functionality
 │   │   └── k0s.go          # K0s-specific kubeconfig retrieval

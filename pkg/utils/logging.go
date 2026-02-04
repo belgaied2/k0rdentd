@@ -37,5 +37,9 @@ func SetupLogging(debug bool) {
 
 // GetLogger returns the global logger instance
 func GetLogger() *logrus.Logger {
+	if log == nil {
+		// Initialize with default settings if not already initialized
+		SetupLogging(false)
+	}
 	return log
 }

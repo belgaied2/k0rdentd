@@ -29,6 +29,35 @@ k0rdent:
         type: ClusterIP
         port: 80
 
+# Cloud Provider Credentials
+# Credentials for managing clusters on different cloud providers
+credentials:
+  aws:
+    - name: aws-prod-credential
+      region: us-west-2
+      accessKeyID: "${AWS_ACCESS_KEY_ID}"
+      secretAccessKey: "${AWS_SECRET_ACCESS_KEY}"
+      # Optional: For MFA or SSO scenarios
+      # sessionToken: "${AWS_SESSION_TOKEN}"
+  azure:
+    - name: azure-prod-credential
+      subscriptionID: "${AZURE_SUBSCRIPTION_ID}"
+      clientID: "${AZURE_CLIENT_ID}"
+      clientSecret: "${AZURE_CLIENT_SECRET}"
+      tenantID: "${AZURE_TENANT_ID}"
+  openstack:
+    - name: openstack-prod-credential
+      authURL: "https://openstack.example.com:5000/v3"
+      region: "RegionOne"
+      # Using application credentials (recommended)
+      applicationCredentialID: "${OS_APPLICATION_CREDENTIAL_ID}"
+      applicationCredentialSecret: "${OS_APPLICATION_CREDENTIAL_SECRET}"
+      # Alternatively, using username/password
+      # username: "${OS_USERNAME}"
+      # password: "${OS_PASSWORD}"
+      # projectName: "${OS_PROJECT_NAME}"
+      # domainName: "${OS_DOMAIN_NAME}"
+
 # Global Settings
 debug: false
 logLevel: "info"

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/belgaied2/k0rdentd/pkg/config"
+	"github.com/belgaied2/k0rdentd/pkg/credentials"
 	"github.com/belgaied2/k0rdentd/pkg/k8sclient"
 	"github.com/belgaied2/k0rdentd/pkg/utils"
 )
@@ -68,12 +70,16 @@ func (i *Installer) waitForWithSpinner(
 }
 
 // Install installs K0s and K0rdent using the generated configuration
-func (i *Installer) Install(k0sConfig []byte) error {
+func (i *Installer) Install(k0sConfig []byte, k0rdentConfig *config.K0rdentConfig) error {
 	if i.dryRun {
 		utils.GetLogger().Infof("📝 Dry run mode - showing what would be done:")
 		utils.GetLogger().Infof("1. Write K0s configuration to /etc/k0s/k0s.yaml")
 		utils.GetLogger().Infof("2. Execute: k0s install --config /etc/k0s/k0s.yaml")
 		utils.GetLogger().Infof("3. Start K0s service")
+		utils.GetLogger().Infof("4. Wait for K0rdent to be installed")
+		if k0rdentConfig != nil && k0rdentConfig.Credentials.HasCredentials() {
+			utils.GetLogger().Infof("5. Create cloud provider credentials")
+		}
 		return nil
 	}
 
@@ -92,6 +98,28 @@ func (i *Installer) Install(k0sConfig []byte) error {
 		return fmt.Errorf("k0rdent Helm chart failed to install: %w", err)
 	}
 
+	// Create credentials if configured
+	if k0rdentConfig != nil && k0rdentConfig.Credentials.HasCredentials() {
+		if err := i.createCredentials(&k0rdentConfig.Credentials); err != nil {
+			return fmt.Errorf("failed to create credentials: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// createCredentials creates cloud provider credentials in the k0rdent cluster
+func (i *Installer) createCredentials(credsConfig *config.CredentialsConfig) error {
+	utils.GetLogger().Info("Creating cloud provider credentials...")
+
+	credManager := credentials.NewManager(i.k8sClient)
+	ctx := context.Background()
+
+	if err := credManager.CreateAll(ctx, *credsConfig); err != nil {
+		return err
+	}
+
+	utils.GetLogger().Info("✅ Cloud provider credentials created successfully")
 	return nil
 }
 
