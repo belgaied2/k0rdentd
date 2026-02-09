@@ -98,10 +98,19 @@ func (i *Installer) Install(k0sConfig []byte, k0rdentConfig *config.K0rdentConfi
 		return fmt.Errorf("k0rdent Helm chart failed to install: %w", err)
 	}
 
-	// Create credentials if configured
+	// NEW: Wait for CAPI provider Helm releases if credentials are configured
+	if k0rdentConfig != nil && k0rdentConfig.Credentials.HasCredentials() {
+		if err := i.waitForCAPIProviderHelmReleases(&k0rdentConfig.Credentials); err != nil {
+			// Log warning but continue - credential creation will also warn
+			utils.GetLogger().Warnf("⚠️ CAPI infrastructure providers failed to become ready: %v. Will attempt credential creation anyway.", err)
+		}
+	}
+
+	// Create credentials if configured - log warnings on failure but don't fail the installation
 	if k0rdentConfig != nil && k0rdentConfig.Credentials.HasCredentials() {
 		if err := i.createCredentials(&k0rdentConfig.Credentials); err != nil {
-			return fmt.Errorf("failed to create credentials: %w", err)
+			// Log warning but continue - user can still access K0rdent UI
+			utils.GetLogger().Warnf("⚠️ Failed to create credentials: %v. You may need to create them manually through the K0rdent UI.", err)
 		}
 	}
 
@@ -121,6 +130,77 @@ func (i *Installer) createCredentials(credsConfig *config.CredentialsConfig) err
 
 	utils.GetLogger().Info("✅ Cloud provider credentials created successfully")
 	return nil
+}
+
+// waitForCAPIProviderHelmReleases waits for required CAPI infrastructure provider Helm releases to be deployed
+func (i *Installer) waitForCAPIProviderHelmReleases(credsConfig *config.CredentialsConfig) error {
+	ctx := context.Background()
+
+	// Determine which providers are needed
+	providersNeeded := i.getRequiredProviders(credsConfig)
+
+	if len(providersNeeded) == 0 {
+		utils.GetLogger().Debug("No CAPI providers needed")
+		return nil
+	}
+
+	return i.waitForWithSpinner(
+		15*time.Minute,
+		"Waiting for CAPI infrastructure providers to be deployed",
+		func() (bool, error) {
+			// Check if capi-system namespace exists
+			exists, err := i.k8sClient.NamespaceExists(ctx, "capi-system")
+			if err != nil {
+				utils.GetLogger().Debugf("capi-system namespace check failed: %v", err)
+				return false, nil
+			}
+			if !exists {
+				utils.GetLogger().Debug("capi-system namespace does not exist yet")
+				return false, nil
+			}
+
+			// Check if all required provider Helm releases are deployed
+			for _, provider := range providersNeeded {
+				releaseName := fmt.Sprintf("%s-provider", provider)
+				ready, err := i.k8sClient.IsHelmReleaseReady(ctx, "capi-system", releaseName)
+				if err != nil {
+					utils.GetLogger().Debugf("Provider %s Helm release check failed: %v", provider, err)
+					return false, nil
+				}
+				if !ready {
+					utils.GetLogger().Debugf("Provider %s Helm release is not ready yet", provider)
+					return false, nil
+				}
+				utils.GetLogger().Debugf("Provider %s Helm release is deployed", provider)
+			}
+
+			utils.GetLogger().Info("All required CAPI infrastructure provider Helm releases are deployed")
+			return true, nil
+		},
+	)
+}
+
+// getRequiredProviders returns a list of provider types that are needed based on credentials config
+func (i *Installer) getRequiredProviders(credsConfig *config.CredentialsConfig) []string {
+	providers := make(map[string]bool)
+
+	if len(credsConfig.AWS) > 0 {
+		providers["capa"] = true
+	}
+	if len(credsConfig.Azure) > 0 {
+		providers["capz"] = true
+	}
+	if len(credsConfig.OpenStack) > 0 {
+		// OpenStack doesn't need a provider for credentials, but we might want to wait for it
+		// providers["capo"] = true
+	}
+
+	result := make([]string, 0, len(providers))
+	for provider := range providers {
+		result = append(result, provider)
+	}
+
+	return result
 }
 
 // Uninstall uninstalls K0s and K0rdent
@@ -287,18 +367,7 @@ func (i *Installer) waitForK0rdentInstalled() error {
 				return false, nil
 			}
 
-			// Phase 1: Check if helm-controller is still running
-			helmControllerRunning, err := i.isHelmControllerRunning()
-			if err != nil {
-				utils.GetLogger().Warnf("helm-controller check failed: %v", err)
-				return false, nil
-			}
-			if helmControllerRunning {
-				utils.GetLogger().Debug("helm-controller is still running, waiting for K0rdent installation to complete")
-				return false, nil
-			}
-
-			// Phase 2: Check if all required deployments are ready
+			// Check if all required deployments are ready
 			allReady, err := i.areK0rdentDeploymentsReady()
 			if err != nil {
 				utils.GetLogger().Warnf("deployment readiness check failed: %v", err)
@@ -306,7 +375,7 @@ func (i *Installer) waitForK0rdentInstalled() error {
 			}
 
 			if allReady {
-				utils.GetLogger().Info("All K0rdent deployments are ready")
+				utils.GetLogger().Debug("All K0rdent deployments are ready")
 			}
 
 			return allReady, nil
@@ -314,24 +383,18 @@ func (i *Installer) waitForK0rdentInstalled() error {
 	)
 }
 
-// isHelmControllerRunning checks if helm-controller pod is running in kcm-system namespace
-func (i *Installer) isHelmControllerRunning() (bool, error) {
-	ctx := context.Background()
-	return i.k8sClient.IsAnyPodRunning(ctx, "kcm-system", "app=helm-controller")
-}
-
 // areK0rdentDeploymentsReady checks if all required K0rdent deployments are ready
 func (i *Installer) areK0rdentDeploymentsReady() (bool, error) {
 	ctx := context.Background()
 	requiredDeployments := []string{
-		"k0rdent-cert-manager",
-		"k0rdent-cert-manager-cainjector",
-		"k0rdent-cert-manager-webhook",
-		"k0rdent-datasource-controller-manager",
-		"k0rdent-k0rdent-enterprise-controller-manager",
-		"k0rdent-k0rdent-ui",
-		"k0rdent-rbac-manager",
-		"k0rdent-regional-telemetry",
+		"kcm-cert-manager",
+		"kcm-cert-manager-cainjector",
+		"kcm-cert-manager-webhook",
+		"kcm-datasource-controller-manager",
+		"kcm-k0rdent-enterprise-controller-manager",
+		"kcm-k0rdent-ui",
+		"kcm-rbac-manager",
+		"kcm-regional-telemetry",
 	}
 
 	return i.k8sClient.AreAllDeploymentsReady(ctx, "kcm-system", requiredDeployments)

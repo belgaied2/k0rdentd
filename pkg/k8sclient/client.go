@@ -5,6 +5,7 @@ package k8sclient
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -425,6 +426,55 @@ func (c *Client) CreateCredential(ctx context.Context, name, description, identi
 		return fmt.Errorf("failed to create Credential %s/%s: %w", namespace, name, err)
 	}
 	return nil
+}
+
+// HelmReleaseStatus represents the status of a Helm release
+type HelmReleaseStatus string
+
+const (
+	HelmReleaseStatusDeployed HelmReleaseStatus = "deployed"
+	HelmReleaseStatusFailed   HelmReleaseStatus = "failed"
+	HelmReleaseStatusPending  HelmReleaseStatus = "pending"
+	HelmReleaseStatusUnknown  HelmReleaseStatus = "unknown"
+)
+
+// GetHelmReleaseStatus checks the status of a Helm release in the given namespace
+func (c *Client) GetHelmReleaseStatus(ctx context.Context, namespace, releaseName string) (HelmReleaseStatus, error) {
+	// Helm stores release information in Secrets in the namespace where it was installed
+	// The secret name follows the pattern: sh.helm.release.v1.<releaseName>
+	secretName := fmt.Sprintf("sh.helm.release.v1.%s", releaseName)
+
+	secret, err := c.clientset.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return HelmReleaseStatusUnknown, nil
+		}
+		return HelmReleaseStatusUnknown, fmt.Errorf("failed to get Helm release secret %s/%s: %w", namespace, secretName, err)
+	}
+
+	// The release status is stored in the secret's data
+	if statusData, ok := secret.Data["status"]; ok {
+		// Parse the status to determine if it's deployed
+		statusStr := string(statusData)
+		if strings.Contains(statusStr, "STATUS: deployed") {
+			return HelmReleaseStatusDeployed, nil
+		} else if strings.Contains(statusStr, "STATUS: failed") {
+			return HelmReleaseStatusFailed, nil
+		} else if strings.Contains(statusStr, "STATUS: pending") {
+			return HelmReleaseStatusPending, nil
+		}
+	}
+
+	return HelmReleaseStatusUnknown, nil
+}
+
+// IsHelmReleaseReady checks if a Helm release is deployed successfully
+func (c *Client) IsHelmReleaseReady(ctx context.Context, namespace, releaseName string) (bool, error) {
+	status, err := c.GetHelmReleaseStatus(ctx, namespace, releaseName)
+	if err != nil {
+		return false, err
+	}
+	return status == HelmReleaseStatusDeployed, nil
 }
 
 // CreateOpenStackCredential creates a k0rdent Credential for OpenStack (references Secret directly)
