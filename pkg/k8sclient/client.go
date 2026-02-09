@@ -3,8 +3,13 @@
 package k8sclient
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -23,6 +28,13 @@ type Client struct {
 	clientset     kubernetes.Interface
 	dynamicClient dynamic.Interface
 	config        *rest.Config
+}
+
+// HelmRelease represents the simplified structure of the decoded Helm secret
+type HelmRelease struct {
+	Info struct {
+		Status string `json:"status"`
+	} `json:"info"`
 }
 
 // New creates a new Client from a REST config
@@ -442,7 +454,7 @@ const (
 func (c *Client) GetHelmReleaseStatus(ctx context.Context, namespace, releaseName string) (HelmReleaseStatus, error) {
 	// Helm stores release information in Secrets in the namespace where it was installed
 	// The secret name follows the pattern: sh.helm.release.v1.<releaseName>
-	secretName := fmt.Sprintf("sh.helm.release.v1.%s", releaseName)
+	secretName := fmt.Sprintf("sh.helm.release.v1.%s.v1", releaseName)
 
 	secret, err := c.clientset.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
@@ -453,14 +465,37 @@ func (c *Client) GetHelmReleaseStatus(ctx context.Context, namespace, releaseNam
 	}
 
 	// The release status is stored in the secret's data
-	if statusData, ok := secret.Data["status"]; ok {
+	if releaseData, ok := secret.Data["release"]; ok {
+
+		releaseGzipped, err := base64.StdEncoding.DecodeString(string(releaseData))
+		if err != nil {
+			return HelmReleaseStatusUnknown, fmt.Errorf("issue getting content of release secret: %w", err)
+		}
+
+		gzipReader, err := gzip.NewReader(bytes.NewReader(releaseGzipped))
+		if err != nil {
+			return HelmReleaseStatusUnknown, fmt.Errorf("issue getting content of release secret: %w", err)
+		}
+
+		defer gzipReader.Close()
+
+		releaseJson, err := io.ReadAll(gzipReader)
+		if err != nil {
+			return HelmReleaseStatusUnknown, fmt.Errorf("issue getting content of release secret: %w", err)
+		}
+
+		var release HelmRelease
+		if err := json.Unmarshal(releaseJson, &release); err != nil {
+			return HelmReleaseStatusUnknown, fmt.Errorf("unable to extract status content from release")
+		}
+
 		// Parse the status to determine if it's deployed
-		statusStr := string(statusData)
-		if strings.Contains(statusStr, "STATUS: deployed") {
+		statusStr := string(release.Info.Status)
+		if strings.Contains(statusStr, "deployed") {
 			return HelmReleaseStatusDeployed, nil
-		} else if strings.Contains(statusStr, "STATUS: failed") {
+		} else if strings.Contains(statusStr, "failed") {
 			return HelmReleaseStatusFailed, nil
-		} else if strings.Contains(statusStr, "STATUS: pending") {
+		} else if strings.Contains(statusStr, "pending") {
 			return HelmReleaseStatusPending, nil
 		}
 	}
@@ -475,6 +510,69 @@ func (c *Client) IsHelmReleaseReady(ctx context.Context, namespace, releaseName 
 		return false, err
 	}
 	return status == HelmReleaseStatusDeployed, nil
+}
+
+// SecretExists checks if a secret exists
+func (c *Client) SecretExists(ctx context.Context, namespace, name string) (bool, error) {
+	_, err := c.clientset.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to get secret %s/%s: %w", namespace, name, err)
+	}
+	return true, nil
+}
+
+// AWSClusterStaticIdentityExists checks if an AWSClusterStaticIdentity exists
+func (c *Client) AWSClusterStaticIdentityExists(ctx context.Context, namespace, name string) (bool, error) {
+	gvr := schema.GroupVersionResource{
+		Group:    "infrastructure.cluster.x-k8s.io",
+		Version:  "v1beta2",
+		Resource: "awsclusterstaticidentities",
+	}
+	_, err := c.dynamicClient.Resource(gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to get AWSClusterStaticIdentity %s/%s: %w", namespace, name, err)
+	}
+	return true, nil
+}
+
+// AzureClusterIdentityExists checks if an AzureClusterIdentity exists
+func (c *Client) AzureClusterIdentityExists(ctx context.Context, namespace, name string) (bool, error) {
+	gvr := schema.GroupVersionResource{
+		Group:    "infrastructure.cluster.x-k8s.io",
+		Version:  "v1beta1",
+		Resource: "azureclusteridentities",
+	}
+	_, err := c.dynamicClient.Resource(gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to get AzureClusterIdentity %s/%s: %w", namespace, name, err)
+	}
+	return true, nil
+}
+
+// CredentialExists checks if a k0rdent Credential exists
+func (c *Client) CredentialExists(ctx context.Context, namespace, name string) (bool, error) {
+	gvr := schema.GroupVersionResource{
+		Group:    "k0rdent.mirantis.com",
+		Version:  "v1beta1",
+		Resource: "credentials",
+	}
+	_, err := c.dynamicClient.Resource(gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to get Credential %s/%s: %w", namespace, name, err)
+	}
+	return true, nil
 }
 
 // CreateOpenStackCredential creates a k0rdent Credential for OpenStack (references Secret directly)
