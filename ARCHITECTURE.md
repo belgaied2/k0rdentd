@@ -197,19 +197,71 @@ The `credentials` package manages the creation of cloud provider credentials for
 - **Azure**: Creates Secret, AzureClusterIdentity, and Credential objects
 - **OpenStack**: Creates Secret and Credential objects (no Identity object needed)
 
+**Idempotent Resource Creation:**
+
+The `credentials` package implements a generic `createIfNotExists` function that provides idempotent resource creation:
+
+```go
+// ResourceSpec defines the specification of a resource to be created
+type ResourceSpec struct {
+    Type      ResourceType
+    Namespace string
+    Name      string
+}
+
+// createIfNotExists checks for resource existence before creation
+func (m *Manager) createIfNotExists(
+    ctx context.Context,
+    spec ResourceSpec,
+    existsFn ExistsFunc,
+    createFn CreateFunc,
+) error
+```
+
+**Key Features:**
+- **Per-resource checks**: Each resource (Secret, Identity, Credential) is checked individually
+- **Skip if exists**: Existing resources are skipped (DEBUG level logging)
+- **Reduced API calls**: No unnecessary update operations
+- **Partial state recovery**: Can recover from interrupted runs
+
+**Error Handling Strategy:**
+- **Best effort approach**: Secret creation failures return errors, but Identity/Credential creation failures only log warnings
+- This allows the system to continue even if some resources fail to create
+
 **Credential Creation Flow:**
 
 ```mermaid
 graph TD
     A[User Config] -->|Parse| B[CredentialsConfig]
-    B -->|For each AWS cred| C[Create Secret]
-    C -->|Reference| D[Create AWSClusterStaticIdentity]
-    D -->|Reference| E[Create Credential]
-    B -->|For each Azure cred| F[Create Secret]
-    F -->|Reference| G[Create AzureClusterIdentity]
-    G -->|Reference| H[Create Credential]
-    B -->|For each OpenStack cred| I[Create Secret]
-    I -->|Reference| J[Create Credential]
+    B -->|For each AWS cred| C{Secret Exists?}
+    C -->|No| D[Create Secret]
+    C -->|Yes| E[Skip Secret]
+    D --> F{Identity Exists?}
+    E --> F
+    F -->|No| G[Create Identity]
+    F -->|Yes| H[Skip Identity]
+    G --> I{Credential Exists?}
+    H --> I
+    I -->|No| J[Create Credential]
+    I -->|Yes| K[Skip Credential]
+    B -->|For each Azure cred| L{Secret Exists?}
+    L -->|No| M[Create Secret]
+    L -->|Yes| N[Skip Secret]
+    M --> O{Identity Exists?}
+    N --> O
+    O -->|No| P[Create Identity]
+    O -->|Yes| Q[Skip Identity]
+    P --> R{Credential Exists?}
+    Q --> R
+    R -->|No| S[Create Credential]
+    R -->|Yes| T[Skip Credential]
+    B -->|For each OpenStack cred| U{Secret Exists?}
+    U -->|No| V[Create Secret]
+    U -->|Yes| W[Skip Secret]
+    V --> X{Credential Exists?}
+    W --> X
+    X -->|No| Y[Create Credential]
+    X -->|Yes| Z[Skip Credential]
 ```
 
 **Key Components:**
@@ -223,7 +275,7 @@ type Manager struct {
 // NewManager creates a new credentials manager
 func NewManager(client *k8sclient.Client) *Manager
 
-// CreateAll creates all configured credentials
+// CreateAll creates all configured credentials (idempotent)
 func (m *Manager) CreateAll(ctx context.Context, cfg config.CredentialsConfig) error
 ```
 

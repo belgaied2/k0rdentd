@@ -117,26 +117,16 @@ func (i *Installer) Install(k0sConfig []byte, k0rdentConfig *config.K0rdentConfi
 	return nil
 }
 
-// createCredentials creates cloud provider credentials in the k0rdent cluster
+// createCredentials creates cloud provider credentials in the k0rdent cluster.
+// This function is idempotent - it can be called multiple times and will only
+// create resources that don't already exist.
 func (i *Installer) createCredentials(credsConfig *config.CredentialsConfig) error {
-	utils.GetLogger().Info("Checking cloud provider credentials...")
+	utils.GetLogger().Info("Creating cloud provider credentials...")
 
 	credManager := credentials.NewManager(i.k8sClient)
 	ctx := context.Background()
 
-	// Check if all credentials already exist
-	allExist, err := credManager.ExistsAll(ctx, *credsConfig)
-	if err != nil {
-		return fmt.Errorf("failed to check if credentials exist: %w", err)
-	}
-
-	if allExist {
-		utils.GetLogger().Info("✓ All cloud provider credentials already exist, skipping creation")
-		return nil
-	}
-
-	// Credentials don't exist, create them
-	utils.GetLogger().Info("Creating cloud provider credentials...")
+	// CreateAll is idempotent - it will skip existing resources
 	if err := credManager.CreateAll(ctx, *credsConfig); err != nil {
 		return err
 	}

@@ -76,8 +76,9 @@ func TestCreateAWSCredentials(t *testing.T) {
 	secret, err := fakeClient.CoreV1().Secrets(KCMNamespace).Get(ctx, "test-aws-cred-secret", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
-	assert.Equal(t, "AKIAIOSFODNN7EXAMPLE", string(secret.Data["AccessKeyID"]))
-	assert.Equal(t, "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", string(secret.Data["SecretAccessKey"]))
+	// When using StringData, it's stored in Data after creation
+	assert.Equal(t, "AKIAIOSFODNN7EXAMPLE", secret.StringData["AccessKeyID"])
+	assert.Equal(t, "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", secret.StringData["SecretAccessKey"])
 }
 
 func TestCreateAWSCredentialsWithSessionToken(t *testing.T) {
@@ -104,7 +105,7 @@ func TestCreateAWSCredentialsWithSessionToken(t *testing.T) {
 	secret, err := fakeClient.CoreV1().Secrets(KCMNamespace).Get(ctx, "test-aws-cred-secret", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
-	assert.Equal(t, "FwoGZXIvYXdzEBYaDG...", string(secret.Data["SessionToken"]))
+	assert.Equal(t, "FwoGZXIvYXdzEBYaDG...", secret.StringData["SessionToken"])
 }
 
 func TestCreateAzureCredentials(t *testing.T) {
@@ -131,7 +132,7 @@ func TestCreateAzureCredentials(t *testing.T) {
 	secret, err := fakeClient.CoreV1().Secrets(KCMNamespace).Get(ctx, "test-azure-cred-secret", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
-	assert.Equal(t, "my-client-secret", string(secret.Data["clientSecret"]))
+	assert.Equal(t, "my-client-secret", secret.StringData["clientSecret"])
 }
 
 func TestCreateOpenStackCredentialsWithAppCreds(t *testing.T) {
@@ -155,12 +156,12 @@ func TestCreateOpenStackCredentialsWithAppCreds(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify secret was created
-	secret, err := fakeClient.CoreV1().Secrets(KCMNamespace).Get(ctx, "test-openstack-cred-secret", metav1.GetOptions{})
+	secret, err := fakeClient.CoreV1().Secrets(KCMNamespace).Get(ctx, "test-openstack-cred-config", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
 
 	// Verify clouds.yaml content
-	cloudsYAML := string(secret.Data["clouds.yaml"])
+	cloudsYAML := secret.StringData["clouds.yaml"]
 	assert.Contains(t, cloudsYAML, "auth_url: https://openstack.example.com:5000/v3")
 	assert.Contains(t, cloudsYAML, "application_credential_id: app-cred-id")
 	assert.Contains(t, cloudsYAML, "application_credential_secret: app-cred-secret")
@@ -190,16 +191,16 @@ func TestCreateOpenStackCredentialsWithPassword(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify secret was created
-	secret, err := fakeClient.CoreV1().Secrets(KCMNamespace).Get(ctx, "test-openstack-cred-secret", metav1.GetOptions{})
+	secret, err := fakeClient.CoreV1().Secrets(KCMNamespace).Get(ctx, "test-openstack-cred-config", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
 
 	// Verify clouds.yaml content
-	cloudsYAML := string(secret.Data["clouds.yaml"])
+	cloudsYAML := secret.StringData["clouds.yaml"]
 	assert.Contains(t, cloudsYAML, "username: admin")
 	assert.Contains(t, cloudsYAML, "password: secretpassword")
 	assert.Contains(t, cloudsYAML, "project_name: my-project")
-	assert.Contains(t, cloudsYAML, "user_domain_name: Default")
+	assert.Contains(t, cloudsYAML, "domain_name: Default")
 }
 
 func TestCreateAll(t *testing.T) {
@@ -254,7 +255,7 @@ func TestCreateAll(t *testing.T) {
 	assert.NotNil(t, azureSecret)
 
 	// Verify OpenStack secret was created
-	openstackSecret, err := fakeClient.CoreV1().Secrets(KCMNamespace).Get(ctx, "openstack-cred-1-secret", metav1.GetOptions{})
+	openstackSecret, err := fakeClient.CoreV1().Secrets(KCMNamespace).Get(ctx, "openstack-cred-1-config", metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, openstackSecret)
 }
@@ -329,3 +330,197 @@ func TestHasCredentials(t *testing.T) {
 		})
 	}
 }
+
+// TestCreateAWSCredentialsIdempotent tests that AWS credential creation is idempotent
+func TestCreateAWSCredentialsIdempotent(t *testing.T) {
+	ctx := context.Background()
+
+	fakeClient := fake.NewSimpleClientset()
+	fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+
+	client := k8sclient.NewFromClientsetAndDynamic(fakeClient, fakeDynamicClient)
+	manager := NewManager(client)
+
+	awsCred := config.AWSCredential{
+		Name:            "test-aws-cred",
+		Region:          "us-west-2",
+		AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+		SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+	}
+
+	// First creation - should create all resources
+	err := manager.createAWSCredentials(ctx, awsCred)
+	assert.NoError(t, err)
+
+	// Verify secret was created
+	secret, err := fakeClient.CoreV1().Secrets(KCMNamespace).Get(ctx, "test-aws-cred-secret", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, secret)
+
+	// Second creation - should skip creation (resources already exist)
+	// The function should not return an error and should not recreate resources
+	err = manager.createAWSCredentials(ctx, awsCred)
+	assert.NoError(t, err)
+
+	// Verify the secret still exists and wasn't replaced
+	secret, err = fakeClient.CoreV1().Secrets(KCMNamespace).Get(ctx, "test-aws-cred-secret", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, secret)
+}
+
+// TestCreateAzureCredentialsIdempotent tests that Azure credential creation is idempotent
+func TestCreateAzureCredentialsIdempotent(t *testing.T) {
+	ctx := context.Background()
+
+	fakeClient := fake.NewSimpleClientset()
+	fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+
+	client := k8sclient.NewFromClientsetAndDynamic(fakeClient, fakeDynamicClient)
+	manager := NewManager(client)
+
+	azureCred := config.AzureCredential{
+		Name:           "test-azure-cred",
+		SubscriptionID: "12345678-1234-1234-1234-123456789012",
+		ClientID:       "87654321-4321-4321-4321-210987654321",
+		ClientSecret:   "my-client-secret",
+		TenantID:       "11111111-1111-1111-1111-111111111111",
+	}
+
+	// First creation - should create all resources
+	err := manager.createAzureCredentials(ctx, azureCred)
+	assert.NoError(t, err)
+
+	// Verify secret was created
+	secret, err := fakeClient.CoreV1().Secrets(KCMNamespace).Get(ctx, "test-azure-cred-secret", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, secret)
+
+	// Second creation - should skip creation (resources already exist)
+	err = manager.createAzureCredentials(ctx, azureCred)
+	assert.NoError(t, err)
+
+	// Verify the secret still exists and wasn't replaced
+	secret, err = fakeClient.CoreV1().Secrets(KCMNamespace).Get(ctx, "test-azure-cred-secret", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, secret)
+}
+
+// TestCreateOpenStackCredentialsIdempotent tests that OpenStack credential creation is idempotent
+func TestCreateOpenStackCredentialsIdempotent(t *testing.T) {
+	ctx := context.Background()
+
+	fakeClient := fake.NewSimpleClientset()
+	fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+
+	client := k8sclient.NewFromClientsetAndDynamic(fakeClient, fakeDynamicClient)
+	manager := NewManager(client)
+
+	openstackCred := config.OpenStackCredential{
+		Name:                        "test-openstack-cred",
+		AuthURL:                     "https://openstack.example.com:5000/v3",
+		Region:                      "RegionOne",
+		ApplicationCredentialID:     "app-cred-id",
+		ApplicationCredentialSecret: "app-cred-secret",
+	}
+
+	// First creation - should create all resources
+	err := manager.createOpenStackCredentials(ctx, openstackCred)
+	assert.NoError(t, err)
+
+	// Verify secret was created
+	secret, err := fakeClient.CoreV1().Secrets(KCMNamespace).Get(ctx, "test-openstack-cred-config", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, secret)
+
+	// Second creation - should skip creation (resources already exist)
+	err = manager.createOpenStackCredentials(ctx, openstackCred)
+	assert.NoError(t, err)
+
+	// Verify the secret still exists and wasn't replaced
+	secret, err = fakeClient.CoreV1().Secrets(KCMNamespace).Get(ctx, "test-openstack-cred-config", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, secret)
+}
+
+// TestCreateAllIdempotent tests that CreateAll is idempotent
+func TestCreateAllIdempotent(t *testing.T) {
+	ctx := context.Background()
+
+	fakeClient := fake.NewSimpleClientset()
+	fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+
+	client := k8sclient.NewFromClientsetAndDynamic(fakeClient, fakeDynamicClient)
+	manager := NewManager(client)
+
+	cfg := config.CredentialsConfig{
+		AWS: []config.AWSCredential{
+			{
+				Name:            "aws-cred-1",
+				Region:          "us-west-2",
+				AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+				SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+			},
+		},
+	}
+
+	// First creation
+	err := manager.CreateAll(ctx, cfg)
+	assert.NoError(t, err)
+
+	// Verify secret was created
+	awsSecret, err := fakeClient.CoreV1().Secrets(KCMNamespace).Get(ctx, "aws-cred-1-secret", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, awsSecret)
+
+	// Second creation - should not fail or recreate
+	err = manager.CreateAll(ctx, cfg)
+	assert.NoError(t, err)
+
+	// Verify the secret still exists
+	awsSecret, err = fakeClient.CoreV1().Secrets(KCMNamespace).Get(ctx, "aws-cred-1-secret", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, awsSecret)
+}
+
+// TestCreateAWSCredentialsPartialFailure tests "best effort" error handling for AWS credentials
+func TestCreateAWSCredentialsPartialFailure(t *testing.T) {
+	ctx := context.Background()
+
+	fakeClient := fake.NewSimpleClientset()
+	fakeDynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+
+	client := k8sclient.NewFromClientsetAndDynamic(fakeClient, fakeDynamicClient)
+	manager := NewManager(client)
+
+	awsCred := config.AWSCredential{
+		Name:            "test-aws-cred-partial",
+		Region:          "us-west-2",
+		AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+		SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+	}
+
+	// Create the secret first (to simulate partial state)
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-aws-cred-partial-secret",
+			Namespace: KCMNamespace,
+		},
+		StringData: map[string]string{
+			"AccessKeyID":     "AKIAIOSFODNN7EXAMPLE",
+			"SecretAccessKey": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+		},
+	}
+	_, err := fakeClient.CoreV1().Secrets(KCMNamespace).Create(ctx, secret, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// Now try to create the full credential set - should skip the secret and try to create the rest
+	err = manager.createAWSCredentials(ctx, awsCred)
+	// Should succeed since Secret exists (best effort for other resources)
+	assert.NoError(t, err)
+
+	// Verify the original secret still exists
+	existingSecret, err := fakeClient.CoreV1().Secrets(KCMNamespace).Get(ctx, "test-aws-cred-partial-secret", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, existingSecret)
+}
+

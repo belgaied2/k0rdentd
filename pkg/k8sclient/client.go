@@ -316,7 +316,7 @@ func (c *Client) CreateAWSClusterStaticIdentity(ctx context.Context, name, secre
 		},
 	}
 
-	_, err := c.dynamicClient.Resource(gvr).Namespace(namespace).Create(ctx, identity, metav1.CreateOptions{})
+	_, err := c.dynamicClient.Resource(gvr).Create(ctx, identity, metav1.CreateOptions{})
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
 			// Resource already exists, update it

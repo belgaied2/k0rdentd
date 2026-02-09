@@ -11,6 +11,7 @@ This feature adds the ability for k0rdentd to automatically create cloud provide
 3. **Secure**: Credentials are stored as Kubernetes Secrets
 4. **Automatic**: Credentials are created automatically after k0rdent installation
 5. **Extensible**: Easy to add new cloud providers in the future
+6. **Idempotent**: Credential creation can be run multiple times safely - only creates resources that don't exist
 
 ## Configuration Structure
 
@@ -382,11 +383,61 @@ func installAction(c *cli.Context) error {
 3. **Namespace Isolation**: Credentials are created in the k0rdent namespace (kcm-system)
 4. **Allowed Namespaces**: Identity objects use `allowedNamespaces` to control access
 
+## Idempotent Implementation
+
+The credential creation system is designed to be fully idempotent, allowing it to be run multiple times safely.
+
+### Per-Resource Idempotency
+
+Each resource (Secret, Identity, Credential) is checked individually before creation:
+
+1. **Existence Check**: Before creating any resource, the system checks if it already exists
+2. **Skip if Exists**: If a resource exists, it is skipped (logged at DEBUG level) and no API calls are made
+3. **Create if Missing**: If a resource doesn't exist, it is created
+
+### Benefits
+
+- **Partial State Recovery**: If a previous run was interrupted (e.g., Secret created but Identity failed), the next run will skip the existing Secret and create the missing Identity
+- **Reduced API Calls**: Existing resources are not retrieved or updated, minimizing unnecessary API traffic
+- **Safe Re-runs**: The entire credential creation process can be safely re-run without causing conflicts or duplicate resources
+
+### Error Handling Strategy
+
+The system implements a "best effort" error handling strategy:
+
+- **Secret Creation**: If Secret creation fails, the entire credential creation fails (critical component)
+- **Identity/Credential Creation**: If Identity or Credential creation fails, a warning is logged but the process continues
+- This approach allows partial failures to be recovered in subsequent runs
+
+### Example Flow
+
+```mermaid
+graph TD
+    A[Start Credential Creation] --> B{Secret Exists?}
+    B -->|Yes| C[Skip Secret DEBUG log]
+    B -->|No| D[Create Secret]
+    D --> E{Success?}
+    E -->|Yes| F{Identity Exists?}
+    E -->|No| G[Return Error]
+    F -->|Yes| H[Skip Identity DEBUG log]
+    F -->|No| I[Create Identity]
+    I --> J{Success?}
+    J -->|Yes| K{Credential Exists?}
+    J -->|No| L[Log Warn Continue]
+    K -->|Yes| M[Skip Credential DEBUG log]
+    K -->|No| N[Create Credential]
+    N --> O{Success?}
+    O -->|Yes| P[Success]
+    O -->|No| Q[Log Warn Continue]
+```
+
 ## Testing Strategy
 
 1. **Unit Tests**: Test credential generation logic with fake k8s client
-2. **Validation Tests**: Test configuration parsing and validation
-3. **Integration Tests**: Test credential creation against a real k0s cluster
+2. **Idempotency Tests**: Verify that running credential creation twice produces the same result
+3. **Partial Failure Tests**: Verify system handles partial state correctly
+4. **Validation Tests**: Test configuration parsing and validation
+5. **Integration Tests**: Test credential creation against a real k0s cluster
 
 ## Future Enhancements
 
