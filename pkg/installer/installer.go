@@ -119,11 +119,24 @@ func (i *Installer) Install(k0sConfig []byte, k0rdentConfig *config.K0rdentConfi
 
 // createCredentials creates cloud provider credentials in the k0rdent cluster
 func (i *Installer) createCredentials(credsConfig *config.CredentialsConfig) error {
-	utils.GetLogger().Info("Creating cloud provider credentials...")
+	utils.GetLogger().Info("Checking cloud provider credentials...")
 
 	credManager := credentials.NewManager(i.k8sClient)
 	ctx := context.Background()
 
+	// Check if all credentials already exist
+	allExist, err := credManager.ExistsAll(ctx, *credsConfig)
+	if err != nil {
+		return fmt.Errorf("failed to check if credentials exist: %w", err)
+	}
+
+	if allExist {
+		utils.GetLogger().Info("✓ All cloud provider credentials already exist, skipping creation")
+		return nil
+	}
+
+	// Credentials don't exist, create them
+	utils.GetLogger().Info("Creating cloud provider credentials...")
 	if err := credManager.CreateAll(ctx, *credsConfig); err != nil {
 		return err
 	}
@@ -161,7 +174,7 @@ func (i *Installer) waitForCAPIProviderHelmReleases(credsConfig *config.Credenti
 
 			// Check if all required provider Helm releases are deployed
 			for _, provider := range providersNeeded {
-				releaseName := fmt.Sprintf("%s-provider", provider)
+				releaseName := fmt.Sprintf("cluster-api-provider-%s", provider)
 				ready, err := i.k8sClient.IsHelmReleaseReady(ctx, "kcm-system", releaseName)
 				if err != nil {
 					utils.GetLogger().Debugf("Provider %s Helm release check failed: %v", provider, err)
@@ -185,10 +198,10 @@ func (i *Installer) getRequiredProviders(credsConfig *config.CredentialsConfig) 
 	providers := make(map[string]bool)
 
 	if len(credsConfig.AWS) > 0 {
-		providers["capa"] = true
+		providers["aws"] = true
 	}
 	if len(credsConfig.Azure) > 0 {
-		providers["capz"] = true
+		providers["azure"] = true
 	}
 	if len(credsConfig.OpenStack) > 0 {
 		// OpenStack doesn't need a provider for credentials, but we might want to wait for it
@@ -255,6 +268,54 @@ func (i *Installer) writeK0sConfig(config []byte) error {
 
 // installK0s installs K0s using the generated configuration
 func (i *Installer) installK0s() error {
+	// Check if k0s is already installed and running
+	if isK0sInstalled() && isK0sRunning() {
+		utils.GetLogger().Info("✓ K0s is already installed and running, skipping installation")
+
+		// Initialize Kubernetes client
+		utils.GetLogger().Debug("Initializing Kubernetes client...")
+		client, err := k8sclient.NewFromK0s()
+		if err != nil {
+			return fmt.Errorf("failed to create Kubernetes client: %w", err)
+		}
+		i.k8sClient = client
+		utils.GetLogger().Debug("Kubernetes client initialized successfully")
+		return nil
+	}
+
+	// Check if k0s is installed but not running
+	if isK0sInstalled() && !isK0sRunning() {
+		utils.GetLogger().Info("K0s is installed but not running, starting K0s...")
+		startCmd := exec.Command("k0s", "start")
+		var startStderrBuf bytes.Buffer
+		startCmd.Stderr = &startStderrBuf
+
+		if i.debug {
+			utils.GetLogger().Debug("🔧 Executing: k0s start")
+			startCmd.Stdout = os.Stdout
+			startCmd.Stderr = io.MultiWriter(os.Stderr, &startStderrBuf)
+		}
+
+		if err := startCmd.Run(); err != nil {
+			return fmt.Errorf("Command \"k0s start\" failed: %w. stderr: %s", err, startStderrBuf.String())
+		}
+		err := i.waitForK0sReady()
+		if err != nil {
+			return fmt.Errorf("Command \"k0s start\" was successful, but k0s never became ready")
+		}
+
+		// Initialize Kubernetes client after k0s is ready
+		utils.GetLogger().Debug("Initializing Kubernetes client...")
+		client, err := k8sclient.NewFromK0s()
+		if err != nil {
+			return fmt.Errorf("failed to create Kubernetes client: %w", err)
+		}
+		i.k8sClient = client
+		utils.GetLogger().Debug("Kubernetes client initialized successfully")
+		return nil
+	}
+
+	// K0s is not installed, proceed with installation
 	var stderrBuf bytes.Buffer
 	cmd := exec.Command("k0s", "install", "controller", "--enable-worker", "--no-taints")
 	cmd.Stderr = &stderrBuf
@@ -299,8 +360,20 @@ func (i *Installer) installK0s() error {
 	return nil
 }
 
-// isK0sStarted checks if K0s is started by checking its status
-func isK0sStarted() bool {
+// isK0sInstalled checks if k0s is installed by checking if the config file exists
+func isK0sInstalled() bool {
+
+	cmd := exec.Command("systemctl", "is-enabled", "k0scontroller.service")
+	_, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+
+	return true
+}
+
+// isK0sRunning checks if k0s is running by checking its status
+func isK0sRunning() bool {
 	// Run k0s status command
 	cmd := exec.Command("k0s", "status")
 	output, err := cmd.Output()
@@ -313,6 +386,12 @@ func isK0sStarted() bool {
 	// Parse output to check if k0s is ready
 	outputStr := string(output)
 	return strings.Contains(outputStr, "Kube-api probing successful: true")
+}
+
+// isK0sStarted checks if K0s is started by checking its status
+// Deprecated: Use isK0sRunning instead
+func isK0sStarted() bool {
+	return isK0sRunning()
 }
 
 // stopK0s stops the K0s service
@@ -352,6 +431,17 @@ func (i *Installer) waitForK0sReady() error {
 // waitForK0rdentInstalled waits for the k0rdent Helm chart to be installed
 func (i *Installer) waitForK0rdentInstalled() error {
 	ctx := context.Background()
+
+	// First check if K0rdent is already ready
+	exists, err := i.k8sClient.NamespaceExists(ctx, "kcm-system")
+	if err == nil && exists {
+		allReady, err := i.areK0rdentDeploymentsReady()
+		if err == nil && allReady {
+			utils.GetLogger().Info("✓ K0rdent is already installed and ready, skipping wait")
+			return nil
+		}
+	}
+
 	return i.waitForWithSpinner(
 		15*time.Minute,
 		"Waiting for K0rdent to become ready",

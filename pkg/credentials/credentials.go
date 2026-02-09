@@ -34,12 +34,143 @@ func NewManager(client *k8sclient.Client) *Manager {
 	}
 }
 
+// ExistsAll checks if all configured credentials exist in the cluster
+func (m *Manager) ExistsAll(ctx context.Context, cfg config.CredentialsConfig) (bool, error) {
+	// Check AWS credentials
+	for _, cred := range cfg.AWS {
+		exists, err := m.awsCredentialExists(ctx, cred)
+		if err != nil {
+			return false, err
+		}
+		if !exists {
+			return false, nil
+		}
+	}
+
+	// Check Azure credentials
+	for _, cred := range cfg.Azure {
+		exists, err := m.azureCredentialExists(ctx, cred)
+		if err != nil {
+			return false, err
+		}
+		if !exists {
+			return false, nil
+		}
+	}
+
+	// Check OpenStack credentials
+	for _, cred := range cfg.OpenStack {
+		exists, err := m.openStackCredentialExists(ctx, cred)
+		if err != nil {
+			return false, err
+		}
+		if !exists {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+// awsCredentialExists checks if all components of an AWS credential exist
+func (m *Manager) awsCredentialExists(ctx context.Context, cred config.AWSCredential) (bool, error) {
+	secretName := fmt.Sprintf("%s-secret", cred.Name)
+	identityName := fmt.Sprintf("%s-identity", cred.Name)
+
+	// Check Secret exists
+	secretExists, err := m.client.SecretExists(ctx, KCMNamespace, secretName)
+	if err != nil {
+		return false, fmt.Errorf("failed to check AWS secret: %w", err)
+	}
+	if !secretExists {
+		return false, nil
+	}
+
+	// Check AWSClusterStaticIdentity exists
+	identityExists, err := m.client.AWSClusterStaticIdentityExists(ctx, KCMNamespace, identityName)
+	if err != nil {
+		return false, fmt.Errorf("failed to check AWSClusterStaticIdentity: %w", err)
+	}
+	if !identityExists {
+		return false, nil
+	}
+
+	// Check Credential exists
+	credExists, err := m.client.CredentialExists(ctx, KCMNamespace, cred.Name)
+	if err != nil {
+		return false, fmt.Errorf("failed to check Credential: %w", err)
+	}
+	return credExists, nil
+}
+
+// azureCredentialExists checks if all components of an Azure credential exist
+func (m *Manager) azureCredentialExists(ctx context.Context, cred config.AzureCredential) (bool, error) {
+	secretName := fmt.Sprintf("%s-secret", cred.Name)
+	identityName := fmt.Sprintf("%s-identity", cred.Name)
+
+	// Check Secret exists
+	secretExists, err := m.client.SecretExists(ctx, KCMNamespace, secretName)
+	if err != nil {
+		return false, fmt.Errorf("failed to check Azure secret: %w", err)
+	}
+	if !secretExists {
+		return false, nil
+	}
+
+	// Check AzureClusterIdentity exists
+	identityExists, err := m.client.AzureClusterIdentityExists(ctx, KCMNamespace, identityName)
+	if err != nil {
+		return false, fmt.Errorf("failed to check AzureClusterIdentity: %w", err)
+	}
+	if !identityExists {
+		return false, nil
+	}
+
+	// Check Credential exists
+	credExists, err := m.client.CredentialExists(ctx, KCMNamespace, cred.Name)
+	if err != nil {
+		return false, fmt.Errorf("failed to check Credential: %w", err)
+	}
+	return credExists, nil
+}
+
+// openStackCredentialExists checks if all components of an OpenStack credential exist
+func (m *Manager) openStackCredentialExists(ctx context.Context, cred config.OpenStackCredential) (bool, error) {
+	secretName := fmt.Sprintf("%s-config", cred.Name)
+
+	// Check Secret exists
+	secretExists, err := m.client.SecretExists(ctx, KCMNamespace, secretName)
+	if err != nil {
+		return false, fmt.Errorf("failed to check OpenStack secret: %w", err)
+	}
+	if !secretExists {
+		return false, nil
+	}
+
+	// Check Credential exists (no Identity object for OpenStack)
+	credExists, err := m.client.CredentialExists(ctx, KCMNamespace, cred.Name)
+	if err != nil {
+		return false, fmt.Errorf("failed to check Credential: %w", err)
+	}
+	return credExists, nil
+}
+
 // CreateAll creates all configured credentials for all cloud providers
 func (m *Manager) CreateAll(ctx context.Context, cfg config.CredentialsConfig) error {
 	utils.GetLogger().Debug("Starting credentials creation")
 
 	// Create AWS credentials
 	for _, cred := range cfg.AWS {
+		// Check if credential already exists
+		exists, err := m.awsCredentialExists(ctx, cred)
+		if err != nil {
+			return fmt.Errorf("failed to check if AWS credential %s exists: %w", cred.Name, err)
+		}
+		if exists {
+			utils.GetLogger().Infof("✓ AWS credential %s already exists, skipping creation", cred.Name)
+			continue
+		}
+
 		if err := m.createAWSCredentials(ctx, cred); err != nil {
 			return fmt.Errorf("failed to create AWS credential %s: %w", cred.Name, err)
 		}
@@ -47,6 +178,16 @@ func (m *Manager) CreateAll(ctx context.Context, cfg config.CredentialsConfig) e
 
 	// Create Azure credentials
 	for _, cred := range cfg.Azure {
+		// Check if credential already exists
+		exists, err := m.azureCredentialExists(ctx, cred)
+		if err != nil {
+			return fmt.Errorf("failed to check if Azure credential %s exists: %w", cred.Name, err)
+		}
+		if exists {
+			utils.GetLogger().Infof("✓ Azure credential %s already exists, skipping creation", cred.Name)
+			continue
+		}
+
 		if err := m.createAzureCredentials(ctx, cred); err != nil {
 			return fmt.Errorf("failed to create Azure credential %s: %w", cred.Name, err)
 		}
@@ -54,6 +195,16 @@ func (m *Manager) CreateAll(ctx context.Context, cfg config.CredentialsConfig) e
 
 	// Create OpenStack credentials
 	for _, cred := range cfg.OpenStack {
+		// Check if credential already exists
+		exists, err := m.openStackCredentialExists(ctx, cred)
+		if err != nil {
+			return fmt.Errorf("failed to check if OpenStack credential %s exists: %w", cred.Name, err)
+		}
+		if exists {
+			utils.GetLogger().Infof("✓ OpenStack credential %s already exists, skipping creation", cred.Name)
+			continue
+		}
+
 		if err := m.createOpenStackCredentials(ctx, cred); err != nil {
 			return fmt.Errorf("failed to create OpenStack credential %s: %w", cred.Name, err)
 		}
