@@ -17,9 +17,9 @@ import (
 
 const (
 	// k0rdentUIDeploymentName is the name of the k0rdent UI deployment
-	k0rdentUIDeploymentName = "k0rdent-k0rdent-ui"
+	k0rdentUIDeploymentName = "kcm-k0rdent-ui"
 	// k0rdentUIServiceName is the name of the k0rdent UI service
-	k0rdentUIServiceName = "k0rdent-k0rdent-ui"
+	k0rdentUIServiceName = "kcm-k0rdent-ui"
 	// k0rdentUINamespace is the namespace where k0rdent runs
 	k0rdentUINamespace = "kcm-system"
 	// k0rdentUIIngressName is the name of the ingress we'll create

@@ -148,21 +148,21 @@ func (i *Installer) waitForCAPIProviderHelmReleases(credsConfig *config.Credenti
 		15*time.Minute,
 		"Waiting for CAPI infrastructure providers to be deployed",
 		func() (bool, error) {
-			// Check if capi-system namespace exists
-			exists, err := i.k8sClient.NamespaceExists(ctx, "capi-system")
+			// Check if kcm-system namespace exists
+			exists, err := i.k8sClient.NamespaceExists(ctx, "kcm-system")
 			if err != nil {
-				utils.GetLogger().Debugf("capi-system namespace check failed: %v", err)
+				utils.GetLogger().Debugf("kcm-system namespace check failed: %v", err)
 				return false, nil
 			}
 			if !exists {
-				utils.GetLogger().Debug("capi-system namespace does not exist yet")
+				utils.GetLogger().Debug("kcm-system namespace does not exist yet")
 				return false, nil
 			}
 
 			// Check if all required provider Helm releases are deployed
 			for _, provider := range providersNeeded {
 				releaseName := fmt.Sprintf("%s-provider", provider)
-				ready, err := i.k8sClient.IsHelmReleaseReady(ctx, "capi-system", releaseName)
+				ready, err := i.k8sClient.IsHelmReleaseReady(ctx, "kcm-system", releaseName)
 				if err != nil {
 					utils.GetLogger().Debugf("Provider %s Helm release check failed: %v", provider, err)
 					return false, nil
