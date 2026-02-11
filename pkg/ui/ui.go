@@ -264,17 +264,18 @@ func ExposeUI() error {
 	// Test UI access on primary IP
 	primaryIP := uniqueIPs[0]
 	if TestUIAccess(primaryIP) {
-		utils.GetLogger().Infof("✅ Successfully tested k0rdent UI access on %s\n", primaryIP)
+		utils.GetLogger().Infof("\n✅ Successfully tested k0rdent UI access on http://%s%s", primaryIP, k0rdentUIIngressPath)
 	} else {
-		utils.GetLogger().Infof("⚠️  Warning: Could not access k0rdent UI on %s\n", primaryIP)
-		utils.GetLogger().Infof("   The ingress has been created, but the UI may not be ready yet\n")
+		utils.GetLogger().Infof("\n⚠️  Warning: Could not access k0rdent UI on http://%s%s", primaryIP, k0rdentUIIngressPath)
+		utils.GetLogger().Infof("   The ingress has been created, but the UI is not accessible,")
+		utils.GetLogger().Infof("   this usually means that no Ingress Controller is installed. Try out the NodePort Address")
 	}
 
 	// Print all possible access URLs
 	utils.GetLogger().Info("\n🌐 If an Ingress Controller is installed, K0rdent UI is accessible at:")
 	for _, ip := range uniqueIPs {
 		url := fmt.Sprintf("http://%s%s", ip, k0rdentUIIngressPath)
-		utils.GetLogger().Infof("   %s\n", url)
+		utils.GetLogger().Infof("   %s", url)
 	}
 
 	// Add NodePort access URLs if available
@@ -282,7 +283,7 @@ func ExposeUI() error {
 		utils.GetLogger().Info("\n🔌 NodePort access (requires firewall rules):")
 		for _, ip := range uniqueIPs {
 			url := fmt.Sprintf("http://%s:%d", ip, nodePort)
-			utils.GetLogger().Infof("   %s\n", url)
+			utils.GetLogger().Infof("   %s", url)
 		}
 		utils.GetLogger().Info("\n⚠️  Note: Firewall rules may need to be configured to allow access to the NodePort")
 	}
@@ -300,9 +301,9 @@ func ExposeUI() error {
 	} else {
 		// Default username is typically "admin" for k0rdent
 		username := "admin"
-		utils.GetLogger().Infof("\n🔐 Basic Auth credentials:\n")
-		utils.GetLogger().Infof("   Username: %s\n", username)
-		utils.GetLogger().Infof("   Password: %s\n", password)
+		utils.GetLogger().Infof("\n🔐 Basic Auth credentials:")
+		utils.GetLogger().Infof("   Username: %s", username)
+		utils.GetLogger().Infof("   Password: %s", password)
 	}
 
 	return nil

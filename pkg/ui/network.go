@@ -18,6 +18,9 @@ func commonIgnoredInterfaces() []interfaceFilter {
 			return strings.HasPrefix(name, "vxlan.calico")
 		},
 		func(name string) bool {
+			return strings.HasPrefix(name, "kube-bridge")
+		},
+		func(name string) bool {
 			return strings.HasPrefix(name, "tunl") // tailscale
 		},
 		func(name string) bool {
