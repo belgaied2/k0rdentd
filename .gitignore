@@ -4,3 +4,10 @@
 /.vscode
 /.kilocode
 CLAUDE.md
+/.claude
+# Airgap build artifacts
+internal/airgap/assets/k0s/
+internal/airgap/assets/metadata.json
+build/
+bin/
+k0rdentd-config*.yaml

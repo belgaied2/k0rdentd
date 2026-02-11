@@ -1,0 +1,18 @@
+- ✅: Make giving K0rdentd a config file optional (COMPLETED)
+- ✅: for `INFO` logging, remove the `INFO[<timestamp>]` : (COMPLETED)
+ - ✅: Configuration option for bundle path (config file, CLI flag, env var) : (COMPLETED)
+  - Document how to download and prepare k0rdent enterprise airgap bundles
+  - Document bundle contents and what's included (CAPI providers, dependencies, etc.)
+  - Future: Upgrade handling for k0rdent version updates
+- ✅: Add option to specify AWS credentials for Cluster creation : (COMPLETED)
+- Air Gapped mode
+  - ✅ Phase 1: Foundation (COMPLETED)
+  - ✅ Phase 2: Registry Daemon Implementation (COMPLETED)
+  - Phase 3: Airgap Installation with Registry (PENDING)
+    - Implement k0s binary extraction from embedded assets
+    - Implement registry configuration in k0s
+    - Implement k0rdent helm installation from local registry
+    - Refactor to reuse common install logic from pkg/installer
+    - Add multi-worker registry address configuration
+ - Add option to handle monitoring
+- test on multiple clouds

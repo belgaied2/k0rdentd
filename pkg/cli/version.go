@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/belgaied2/k0rdentd/internal/airgap"
 	"github.com/belgaied2/k0rdentd/pkg/utils"
 	"github.com/urfave/cli/v2"
 )
@@ -17,8 +18,19 @@ var VersionCommand = &cli.Command{
 }
 
 func versionAction(c *cli.Context) error {
-	utils.GetLogger().Infof("k0rdentd version %s", Version)
-	utils.GetLogger().Info("A CLI tool to deploy K0s and K0rdent")
-	utils.GetLogger().Info("Copyright © 2024 belgaied2")
+	logger := utils.GetLogger()
+
+	metadata := airgap.GetBuildMetadata()
+	logger.Infof("k0rdentd version %s", Version)
+	logger.Infof("Build flavor: %s", metadata.Flavor)
+
+	if metadata.Flavor == "airgap" {
+		logger.Infof("K0s version: %s", metadata.K0sVersion)
+		logger.Infof("K0rdent version: %s", metadata.K0rdentVersion)
+	}
+
+	logger.Info("A CLI tool to deploy K0s and K0rdent")
+	logger.Info("Copyright © 2024 belgaied2")
+
 	return nil
 }

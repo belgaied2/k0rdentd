@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/belgaied2/k0rdentd/internal/airgap"
 	"github.com/belgaied2/k0rdentd/pkg/config"
 	"github.com/belgaied2/k0rdentd/pkg/credentials"
 	"github.com/belgaied2/k0rdentd/pkg/k8sclient"
@@ -71,6 +72,12 @@ func (i *Installer) waitForWithSpinner(
 
 // Install installs K0s and K0rdent using the generated configuration
 func (i *Installer) Install(k0sConfig []byte, k0rdentConfig *config.K0rdentConfig) error {
+	// Check if running in airgap mode
+	if airgap.IsAirGap() {
+		return i.installAirgap(k0rdentConfig)
+	}
+
+	// Online installation
 	if i.dryRun {
 		utils.GetLogger().Infof("📝 Dry run mode - showing what would be done:")
 		utils.GetLogger().Infof("1. Write K0s configuration to /etc/k0s/k0s.yaml")
@@ -117,11 +124,49 @@ func (i *Installer) Install(k0sConfig []byte, k0rdentConfig *config.K0rdentConfi
 	return nil
 }
 
-// createCredentials creates cloud provider credentials in the k0rdent cluster.
-// This function is idempotent - it can be called multiple times and will only
-// create resources that don't already exist.
+// installAirgap performs air-gapped installation
+func (i *Installer) installAirgap(k0rdentConfig *config.K0rdentConfig) error {
+	logger := utils.GetLogger()
+
+	metadata := airgap.GetBuildMetadata()
+	logger.Infof("Air-gapped installation (K0s: %s, K0rdent: %s)",
+		metadata.K0sVersion, metadata.K0rdentVersion)
+
+	if i.dryRun {
+		logger.Infof("📝 Dry run mode - airgap installation steps:")
+		logger.Infof("1. Install k0s from embedded binary")
+		logger.Infof("2. Load embedded image bundles")
+		logger.Infof("3. Install k0rdent from embedded helm chart")
+		if k0rdentConfig != nil && k0rdentConfig.Credentials.HasCredentials() {
+			logger.Infof("4. Create cloud provider credentials")
+		}
+		return nil
+	}
+
+	// TODO: Phase 3 - Implement airgap installation with registry daemon
+	// The airgap installer needs to be rewritten to work with the registry daemon approach.
+	// It should:
+	// 1. Extract k0s binary from embedded assets
+	// 2. Install and configure k0s
+	// 3. Configure k0s to use local registry (localhost:5000 or configured address)
+	// 4. Install k0rdent via helm from local registry
+	//
+	// For now, return an error with clear instructions.
+	return fmt.Errorf("airgap installation is not yet implemented for the registry daemon approach\n" +
+		"\n" +
+		"To use the airgap feature:\n" +
+		"1. Start the registry daemon first:\n" +
+		"   sudo k0rdentd registry --bundle-path <bundle.tar.gz> --port 5000\n" +
+		"\n" +
+		"2. Then run the airgap installation (Phase 3 - not yet implemented):\n" +
+		"   sudo k0rdentd install --airgap-bundle-path <bundle.tar.gz> --registry-address localhost:5000\n" +
+		"\n" +
+		"See docs/FEATURE_airgap.md for more details")
+}
+
+// createCredentials creates cloud provider credentials in the k0rdent cluster
 func (i *Installer) createCredentials(credsConfig *config.CredentialsConfig) error {
-	utils.GetLogger().Info("Creating cloud provider credentials...")
+	utils.GetLogger().Debugf("Creating cloud provider credentials...")
 
 	credManager := credentials.NewManager(i.k8sClient)
 	ctx := context.Background()
@@ -260,7 +305,7 @@ func (i *Installer) writeK0sConfig(config []byte) error {
 func (i *Installer) installK0s() error {
 	// Check if k0s is already installed and running
 	if isK0sInstalled() && isK0sRunning() {
-		utils.GetLogger().Info("✓ K0s is already installed and running, skipping installation")
+		utils.GetLogger().Info("✅ K0s is already installed and running, skipping installation")
 
 		// Initialize Kubernetes client
 		utils.GetLogger().Debug("Initializing Kubernetes client...")
@@ -427,7 +472,7 @@ func (i *Installer) waitForK0rdentInstalled() error {
 	if err == nil && exists {
 		allReady, err := i.areK0rdentDeploymentsReady()
 		if err == nil && allReady {
-			utils.GetLogger().Info("✓ K0rdent is already installed and ready, skipping wait")
+			utils.GetLogger().Info("✅ K0rdent is already installed and ready, skipping wait")
 			return nil
 		}
 	}
@@ -471,7 +516,7 @@ func (i *Installer) areK0rdentDeploymentsReady() (bool, error) {
 		"kcm-cert-manager-cainjector",
 		"kcm-cert-manager-webhook",
 		"kcm-datasource-controller-manager",
-		"kcm-k0rdent-enterprise-controller-manager",
+		"kcm-k0rdent-enterprise-controller-manager", //TODO: Check that it works for k0rdent OSS as well.
 		"kcm-k0rdent-ui",
 		"kcm-rbac-manager",
 		"kcm-regional-telemetry",

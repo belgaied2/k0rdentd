@@ -9,7 +9,8 @@ K0rdentd is a CLI tool which deploys K0s and K0rdent on the VM it runs on. It fo
 - RancherD relies on a `Plan` mechanism that relies on an external component called `Upgrade Controller`, we don't want that here, we want to simply call `k0s` binary and configure it with `/etc/k0s/k0s.yaml` based on the content of the `/etc/k0rdentd/k0rdentd.yaml` file.
 - `k0rdent` should be installed using the k0s addon mechanism (under `.spec.extensions.helm` of the `k0s.yaml`, more information avaible [here](https://docs.k0sproject.io/stable/helm-charts/)).
 - Always check the [ARCHITECTURE.md](./ARCHITECTURE.md) file for references about the architecture.
-- Make sure that 
+- Make sure that you read all docuement under ./docs before design and implementing anything new.
+- under [spinner.go](./pkg/utils/spinner.go), there is a spinner that is implemented for re-use whenever a waiting loop is used for checking something repeatedly. Make sure to re-use it whenever you think of implementing a waiting mechanism.
 
 ## Testing
 
