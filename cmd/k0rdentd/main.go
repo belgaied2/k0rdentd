@@ -17,9 +17,12 @@ func main() {
 		Commands: []*urfavecli.Command{
 			cli.InstallCommand,
 			cli.UninstallCommand,
+			cli.RegistryCommand,
 			cli.VersionCommand,
 			cli.ConfigCommand,
 			cli.ExposeUICommand,
+			cli.ExportWorkerArtifactsCommand,
+			cli.ShowFlavorCommand,
 		},
 		Flags: []urfavecli.Flag{
 			&urfavecli.StringFlag{

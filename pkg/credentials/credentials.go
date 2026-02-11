@@ -68,7 +68,7 @@ func (m *Manager) CreateAll(ctx context.Context, cfg config.CredentialsConfig) e
 // createAWSCredentials creates AWS credentials (Secret + AWSClusterStaticIdentity + Credential)
 // This function is idempotent - each resource is only created if it doesn't already exist.
 func (m *Manager) createAWSCredentials(ctx context.Context, cred config.AWSCredential) error {
-	utils.GetLogger().Infof("Creating AWS credential: %s", cred.Name)
+	utils.GetLogger().Debugf("Creating AWS credential: %s", cred.Name)
 	utils.GetLogger().Debugf("AWS credential region: %s", cred.Region)
 
 	secretName := fmt.Sprintf("%s-secret", cred.Name)
@@ -151,7 +151,7 @@ func (m *Manager) createAWSCredentials(ctx context.Context, cred config.AWSCrede
 // createAzureCredentials creates Azure credentials (Secret + AzureClusterIdentity + Credential)
 // This function is idempotent - each resource is only created if it doesn't already exist.
 func (m *Manager) createAzureCredentials(ctx context.Context, cred config.AzureCredential) error {
-	utils.GetLogger().Infof("Creating Azure credential: %s", cred.Name)
+	utils.GetLogger().Debugf("Creating Azure credential: %s", cred.Name)
 
 	secretName := fmt.Sprintf("%s-secret", cred.Name)
 	identityName := fmt.Sprintf("%s-identity", cred.Name)
@@ -226,7 +226,7 @@ func (m *Manager) createAzureCredentials(ctx context.Context, cred config.AzureC
 // createOpenStackCredentials creates OpenStack credentials (Secret + Credential)
 // This function is idempotent - each resource is only created if it doesn't already exist.
 func (m *Manager) createOpenStackCredentials(ctx context.Context, cred config.OpenStackCredential) error {
-	utils.GetLogger().Infof("Creating OpenStack credential: %s", cred.Name)
+	utils.GetLogger().Debugf("Creating OpenStack credential: %s", cred.Name)
 
 	secretName := fmt.Sprintf("%s-config", cred.Name)
 
