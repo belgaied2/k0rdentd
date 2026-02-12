@@ -28,6 +28,6 @@
     - Test multi-worker setup
     - Document complete installation workflow
     - Create example configuration files
-- Add skopeo to the embedded binaries, get that from the `lework/skopeo-binary` GitHub Repo.
+- ✅ Add skopeo to the embedded binaries, get that from the `lework/skopeo-binary` GitHub Repo.
 - Add option to handle monitoring
 - test on multiple clouds

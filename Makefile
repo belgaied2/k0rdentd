@@ -7,6 +7,7 @@ BUILD_TIME ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 # k0s and k0rdent versions for airgap builds
 K0S_VERSION ?= v1.32.8+k0s.0
 K0RDENT_VERSION ?= 1.2.2
+SKOPEO_VERSION ?= v1.17.0
 
 # Build directories
 BINARY_DIR := bin
@@ -57,12 +58,13 @@ build:
 
 ## build-airgap: Build the airgap version of k0rdentd
 .PHONY: build-airgap
-build-airgap: download-k0s
+build-airgap: download-k0s download-skopeo generate-metadata
 	@echo "Building $(AIRGAP_BINARY_NAME) (airgap flavor)..."
 	@mkdir -p $(BINARY_DIR)
 	$(GOBUILD) -tags airgap $(AIRGAP_LDFLAGS) -o $(BINARY_DIR)/$(AIRGAP_BINARY_NAME) cmd/k0rdentd/main.go
 	@echo "✓ Built $(BINARY_DIR)/$(AIRGAP_BINARY_NAME)"
 	@echo "  K0s version: $(K0S_VERSION)"
+	@echo "  Skopeo version: $(SKOPEO_VERSION)"
 	@echo "  Architecture: $(GOARCH)"
 
 ## download-k0s: Download k0s binary for embedding in airgap build
@@ -74,6 +76,16 @@ download-k0s:
 		https://github.com/k0sproject/k0s/releases/download/$(K0S_VERSION)/k0s-$(K0S_VERSION)-$(GOARCH)
 	@chmod +x $(AIRGAP_ASSETS_DIR)/k0s/k0s-$(K0S_VERSION)-$(GOARCH)
 	@echo "✓ Downloaded k0s binary to $(AIRGAP_ASSETS_DIR)/k0s/"
+
+## download-skopeo: Download skopeo binary for embedding in airgap build
+.PHONY: download-skopeo
+download-skopeo:
+	@echo "Downloading skopeo binary $(SKOPEO_VERSION) ($(GOARCH))..."
+	@mkdir -p $(AIRGAP_ASSETS_DIR)/skopeo
+	@curl -sSL -o $(AIRGAP_ASSETS_DIR)/skopeo/skopeo-$(SKOPEO_VERSION)-$(GOARCH) \
+		https://github.com/lework/skopeo-binary/releases/download/$(SKOPEO_VERSION)/skopeo-linux-$(GOARCH)
+	@chmod +x $(AIRGAP_ASSETS_DIR)/skopeo/skopeo-$(SKOPEO_VERSION)-$(GOARCH)
+	@echo "✓ Downloaded skopeo binary to $(AIRGAP_ASSETS_DIR)/skopeo/"
 
 ## generate-metadata: Generate metadata.json for airgap build
 .PHONY: generate-metadata
@@ -118,6 +130,7 @@ clean-airgap:
 	@echo "Cleaning airgap artifacts..."
 	@rm -rf $(AIRGAP_DIR)
 	@rm -rf $(AIRGAP_ASSETS_DIR)/k0s
+	@rm -rf $(AIRGAP_ASSETS_DIR)/skopeo
 	@rm -f $(AIRGAP_ASSETS_DIR)/metadata.json
 	@rm -f $(BINARY_DIR)/$(AIRGAP_BINARY_NAME)
 	@echo "✓ Cleaned airgap artifacts"
