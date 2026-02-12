@@ -14,12 +14,16 @@ jobs:
     strategy:
       matrix:
         include:
+          # Online flavor builds
           - goarch: amd64
-            goarm: ""
+            flavor: online
           - goarch: arm64
-            goarm: ""
-          - goarch: arm
-            goarm: "7"
+            flavor: online
+          # Airgap flavor builds
+          - goarch: amd64
+            flavor: airgap
+          - goarch: arm64
+            flavor: airgap
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -27,7 +31,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.23'
           cache: true
 
       - name: Get version from tag
@@ -36,57 +40,57 @@ jobs:
 
       - name: Build binary
         env:
-          GOOS: linux
           GOARCH: ${{ matrix.goarch }}
-          GOARM: ${{ matrix.goarm }}
           VERSION: ${{ steps.get_version.outputs.VERSION }}
         run: |
-          output_name="k0rdentd"
-          if [ "${{ matrix.goarch }}" = "arm" ]; then
-            ldflags="-X github.com/belgaied2/k0rdentd/pkg/cli.Version=${VERSION}"
+          if [ "${{ matrix.flavor }}" = "airgap" ]; then
+            make build-airgap
+            binary_name="k0rdentd-airgap"
           else
-            ldflags="-X github.com/belgaied2/k0rdentd/pkg/cli.Version=${VERSION}"
+            make build
+            binary_name="k0rdentd"
           fi
-          go build -ldflags "${ldflags}" -o ${output_name} ./cmd/k0rdentd
+          echo "BINARY_NAME=${binary_name}" >> $GITHUB_ENV
 
       - name: Create archive
         id: create_archive
         run: |
           version="${{ steps.get_version.outputs.VERSION }}"
           arch="${{ matrix.goarch }}"
-          if [ "${{ matrix.goarch }}" = "arm" ]; then
-            arch_suffix="armv7"
+          flavor="${{ matrix.flavor }}"
+          
+          if [ "${flavor}" = "airgap" ]; then
+            archive_name="k0rdentd-airgap-${version}-linux-${arch}.tar.gz"
+            binary_name="k0rdentd-airgap"
           else
-            arch_suffix="${{ matrix.goarch }}"
+            archive_name="k0rdentd-${version}-linux-${arch}.tar.gz"
+            binary_name="k0rdentd"
           fi
-          archive_name="k0rdentd-${version}-linux-${arch_suffix}.tar.gz"
           
-          # Create a temporary directory for the archive contents
+          # Create archive directory
           mkdir -p dist/k0rdentd
-          cp k0rdentd dist/k0rdentd/
-          cp README.md dist/k0rdentd/ 2>/dev/null || echo "README.md not found"
-          cp LICENSE dist/k0rdentd/ 2>/dev/null || echo "LICENSE not found"
+          cp bin/${binary_name} dist/k0rdentd/
+          cp README.md dist/k0rdentd/ 2>/dev/null || true
+          cp LICENSE dist/k0rdentd/ 2>/dev/null || true
           
-          # Create the archive
+          # Create archive
           cd dist
           tar -czf "${archive_name}" k0rdentd/
           cd ..
           
-          # Move archive to root for upload
-          mv "dist/${archive_name}" .
-          
           # Generate checksum
-          sha256sum "${archive_name}" > "${archive_name}.sha256"
+          sha256sum "dist/${archive_name}" > "dist/${archive_name}.sha256"
           
+          echo "ARCHIVE_PATH=dist/${archive_name}" >> $GITHUB_OUTPUT
           echo "ARCHIVE_NAME=${archive_name}" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: k0rdentd-${{ matrix.goarch }}${{ matrix.goarm && format('-arm{0}', matrix.goarm) || '' }}
+          name: k0rdentd-${{ matrix.flavor }}-${{ matrix.goarch }}
           path: |
-            ${{ steps.create_archive.outputs.ARCHIVE_NAME }}
-            ${{ steps.create_archive.outputs.ARCHIVE_NAME }}.sha256
+            ${{ steps.create_archive.outputs.ARCHIVE_PATH }}
+            ${{ steps.create_archive.outputs.ARCHIVE_PATH }}.sha256
 
   release:
     needs: build
@@ -111,66 +115,71 @@ jobs:
         id: release_notes
         run: |
           version="${{ steps.get_version.outputs.VERSION }}"
-          
-          # Get the previous tag
           previous_tag=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
           
-          if [ -z "$previous_tag" ]; then
-            # First release
-            commit_range=""
-          else
-            commit_range="${previous_tag}..HEAD"
-          fi
+          cat > release_notes.md << 'EOF'
+          ## What's Changed
           
-          # Initialize release notes
-          echo "## What's New" > release_notes.md
-          echo "" >> release_notes.md
+          ### Artifacts
           
-          # Get merged PRs with labels (if any)
-          if [ -n "$commit_range" ]; then
-            # Try to get PRs from commit messages
-            features=$(git log ${commit_range} --grep="feat:" --oneline 2>/dev/null || true)
-            fixes=$(git log ${commit_range} --grep="fix:" --oneline 2>/dev/null || true)
-            
-            if [ -n "$features" ]; then
-              echo "### New Features" >> release_notes.md
-              echo "${features}" | while read line; do
-                echo "- ${line}" >> release_notes.md
-              done
-              echo "" >> release_notes.md
-            fi
-            
-            if [ -n "$fixes" ]; then
-              echo "### Bug Fixes" >> release_notes.md
-              echo "${fixes}" | while read line; do
-                echo "- ${line}" >> release_notes.md
-              done
-              echo "" >> release_notes.md
-            fi
-          fi
+          #### Online Flavor (Default)
+          Standard k0rdentd binary that downloads k0s and k0rdent from the internet during installation.
           
-          # Add full changelog link
-          echo "### Full Changelog" >> release_notes.md
-          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${previous_tag}...${version}" >> release_notes.md
-          echo "" >> release_notes.md
+          | Architecture | Download | Checksum |
+          |-------------|----------|----------|
+          EOF
           
-          # Add artifacts section
-          echo "## Artifacts" >> release_notes.md
-          echo "" >> release_notes.md
-          echo "| Architecture | Archive | Checksum |" >> release_notes.md
-          echo "|-------------|---------|----------|" >> release_notes.md
-          
-          for dir in artifacts/k0rdentd-*; do
-            if [ -d "$dir" ]; then
-              for file in "$dir"/*.tar.gz; do
-                if [ -f "$file" ]; then
-                  basename_file=$(basename "$file")
-                  checksum_file="${file}.sha256"
-                  echo "| $(echo $basename_file | sed 's/k0rdentd-//' | sed 's/.tar.gz//') | [${basename_file}](${basename_file}) | [SHA256](${basename_file}.sha256) |" >> release_notes.md
-                fi
-              done
+          # Add online artifacts
+          for file in artifacts/k0rdentd-online-*/*.tar.gz; do
+            if [ -f "$file" ]; then
+              basename_file=$(basename "$file")
+              arch=$(echo "$basename_file" | sed 's/k0rdentd-//' | sed 's/-linux-.*//' | sed 's/.*-//')
+              echo "| ${arch} | [${basename_file}](${basename_file}) | [SHA256](${basename_file}.sha256) |" >> release_notes.md
             fi
           done
+          
+          cat >> release_notes.md << 'EOF'
+          
+          #### Airgap Flavor
+          k0rdentd-airgap binary with embedded k0s and skopeo. For offline/air-gapped installations.
+          Requires the k0rdent enterprise airgap bundle (downloaded separately).
+          
+          | Architecture | Download | Checksum |
+          |-------------|----------|----------|
+          EOF
+          
+          # Add airgap artifacts
+          for file in artifacts/k0rdentd-airgap-*/*.tar.gz; do
+            if [ -f "$file" ]; then
+              basename_file=$(basename "$file")
+              arch=$(echo "$basename_file" | sed 's/k0rdentd-airgap-//' | sed 's/-linux-.*//' | sed 's/.*-//')
+              echo "| ${arch} | [${basename_file}](${basename_file}) | [SHA256](${basename_file}.sha256) |" >> release_notes.md
+            fi
+          done
+          
+          cat >> release_notes.md << 'EOF'
+          
+          ### Airgap Installation
+          
+          For air-gapped environments, use the `k0rdentd-airgap` binary:
+          
+          ```bash
+          # Download the k0rdent enterprise airgap bundle separately
+          # See: https://get.mirantis.com/k0rdent-enterprise/
+          
+          # Start the registry daemon
+          sudo ./k0rdentd-airgap registry -b /path/to/airgap-bundle.tar.gz
+          
+          # Run installation
+          sudo ./k0rdentd-airgap install --airgap
+          ```
+          
+          ### Full Changelog
+          EOF
+          
+          if [ -n "$previous_tag" ]; then
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${previous_tag}...${version}" >> release_notes.md
+          fi
           
           cat release_notes.md
 
