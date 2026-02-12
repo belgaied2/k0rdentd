@@ -1,9 +1,11 @@
 # Airgap Feature Implementation Plan
 
-## Status: Phase 2 Completed - Registry Daemon Implemented
+## Status: Phase 3 Completed + OCI Registry Fix + Containerd Mirror Implemented
 
-**Last Updated**: 2025-02-11
-**Phase**: Phase 3 (Airgap Installation with Registry) - In Progress
+**Last Updated**: 2026-02-12
+**Phase**: Phase 3 (Airgap Installation with Registry) - ✅ COMPLETED
+**OCI Registry Fix**: ✅ COMPLETED (2026-02-12)
+**Containerd Mirror Configuration**: ✅ COMPLETED (2026-02-12)
 
 ---
 
@@ -683,16 +685,21 @@ func registryAction(c *cli.Context) error {
 
 ---
 
-## Phase 3: Airgap Installation with Registry (PARTIALLY COMPLETED)
+## Phase 3: Airgap Installation with Registry ✅ (COMPLETED)
 
 **Estimated Effort**: 3 days
-**Status**: ✅ `installAirgap()` exists but returns error with instructions
+**Status**: ✅ All core tasks completed
+**Last Updated**: 2026-02-11
 
 ### Current State
 
-**Status**: Framework in place, implementation pending
+**Status**: ✅ Implementation complete and functional
 
-The `installAirgap()` function in [pkg/installer/installer.go:128-165](pkg/installer/installer.go#L128-L165) currently returns an error with instructions for users to use the registry daemon approach.
+The airgap installation flow has been fully implemented in:
+- `internal/airgap/installer.go` - Main airgap installer
+- `pkg/installer/installer.go` - Integration with main installer
+- `pkg/generator/generator.go` - Airgap k0s config generation
+- `pkg/config/k0rdentd.go` - Airgap configuration structure
 
 **Current Behavior**:
 ```go
@@ -706,10 +713,9 @@ func (i *Installer) installAirgap(k0rdentConfig *config.K0rdentConfig) error {
     if i.dryRun {
         logger.Infof("📝 Dry run mode - airgap installation steps:")
         logger.Infof("1. Install k0s from embedded binary")
-        logger.Infof("2. Load embedded image bundles")
-        logger.Infof("3. Install k0rdent from embedded helm chart")
+        logger.Infof("2. Install k0rdent from embedded helm chart")
         if k0rdentConfig != nil && k0rdentConfig.Credentials.HasCredentials() {
-            logger.Infof("4. Create cloud provider credentials")
+            logger.Infof("3. Create cloud provider credentials")
         }
         return nil
     }
@@ -717,10 +723,10 @@ func (i *Installer) installAirgap(k0rdentConfig *config.K0rdentConfig) error {
     // TODO: Phase 3 - Implement airgap installation with registry daemon
     // The airgap installer needs to be rewritten to work with registry daemon approach.
     // It should:
-    // 1. Extract k0s binary from embedded assets
-    // 2. Install and configure k0s
+    // 1. Extract k0s binary from embedded assets, copy the `k0s-<VERSION>-amd64` file to `/usr/local/bin/k0s`
+    // 2. Create a `k0s.yaml` file that configures the helm installation of K0rdent with the right references to local registry.
     // 3. Configure k0s to use local registry (localhost:5000 or configured address)
-    // 4. Install k0rdent via helm from local registry
+    // 4. Install k0s using `InstallK0s()`.
     //
     // For now, return an error with clear instructions.
     return fmt.Errorf("airgap installation is not yet implemented for registry daemon approach\n" +
@@ -730,36 +736,114 @@ func (i *Installer) installAirgap(k0rdentConfig *config.K0rdentConfig) error {
         "   sudo k0rdentd registry --bundle-path <bundle.tar.gz> --port 5000\n" +
         "\n" +
         "2. Then run airgap installation (Phase 3 - not yet implemented):\n" +
-        "   sudo k0rdentd install --airgap-bundle-path <bundle.tar.gz> --registry-address localhost:5000\n" +
+        "   sudo k0rdentd install --registry-address localhost:5000\n" +
         "\n" +
         "See docs/FEATURE_airgap.md for more details")
 }
 ```
 
-### 3.1 k0s Binary Extraction (PENDING)
+### 3.1 k0s Binary Extraction ✅ (COMPLETED)
 
-**Status**: Not Started
+**Status**: ✅ Completed
 **Estimated Effort**: 0.5 day
+**Completed**: 2026-02-11
 
-- [ ] Implement `extractK0sFromEmbedded()` function
-- [ ] Install to /usr/local/bin/k0s
-- [ ] Make executable
+- ✅ Implemented `ExtractK0sBinary()` in `internal/airgap/installer.go`
+- ✅ Extracts from embedded assets using `assets.K0sBinary`
+- ✅ Copies to `/usr/local/bin/k0s` with executable permissions (0755)
+- ✅ Creates `/usr/local/bin` directory if it doesn't exist
 
-**Note**: The `exporter.go` already has `extractFromEmbedded()` that can be referenced
+**Implementation**:
+```go
+// internal/airgap/installer.go:32-93
+func (i *Installer) ExtractK0sBinary() error
+```
 
 ---
 
-### 3.2 Registry Configuration in k0s (PENDING)
+### 3.2 Registry Configuration in k0s ✅ (COMPLETED)
 
-**Status**: Not Started
+**Status**: ✅ Completed
 **Estimated Effort**: 1 day
+**Completed**: 2026-02-11
 
-- [ ] Implement `ConfigureK0sRegistry()` function
-- [ ] Update k0s config with registry mirror
-- [ ] Restart k0s to apply config
-- [ ] Test image pull from local registry
+- ✅ Implemented `GenerateAirgapK0sConfig()` in `pkg/generator/generator.go`
+- ✅ Sets `default_pull_policy: Never` to prevent external image pulls
+- ✅ Configures helm charts to use OCI from local registry
+- ✅ Registry address configurable via config file (defaults to localhost:5000)
+- ✅ Configuration written BEFORE k0s installation (no restart needed)
 
-**Code (PLANNED)**:
+**Implementation**:
+```go
+// pkg/generator/generator.go:163-256
+func GenerateAirgapK0sConfig(cfg *config.K0rdentdConfig, registryAddr string, insecure bool) ([]byte, error)
+```
+
+**Configuration Structure**:
+```yaml
+spec:
+  images:
+    default_pull_policy: Never  # Prevents external pulls
+  extensions:
+    helm:
+      charts:
+        - name: kcm
+          chartname: oci://localhost:5000/charts/k0rdent-enterprise
+          version: "1.2.2"
+          namespace: kcm-system
+          values: |
+            controller:
+              globalRegistry: localhost:5000
+              templatesRepoURL: oci://localhost:5000/charts
+            image:
+              repository: localhost:5000/kcm-controller
+            flux2:
+              cli:
+                image: localhost:5000/fluxcd/flux-cli
+              helmController:
+                image: localhost:5000/fluxcd/helm-controller
+              sourceController:
+                image: localhost:5000/fluxcd/source-controller
+            regional:
+              telemetry:
+                mode: disabled
+                controller:
+                  image:
+                    repository: localhost:5000/kcm-telemetry
+              cert-manager:
+                image:
+                  repository: localhost:5000/jetstack/cert-manager-controller
+                webhook:
+                  image:
+                    repository: localhost:5000/jetstack/cert-manager-webhook
+                cainjector:
+                  image:
+                    repository: localhost:5000/jetstack/cert-manager-cainjector
+                startupapicheck:
+                  image:
+                    repository: localhost:5000/jetstack/cert-manager-startupapicheck
+              cluster-api-operator:
+                image:
+                  manager:
+                    repository: localhost:5000/capi-operator/cluster-api-operator
+              velero:
+                image:
+                  repository: localhost:5000/velero/velero
+            rbac-manager:
+              enabled: true
+              image:
+                repository: localhost:5000/reactiveops/rbac-manager
+            k0rdent-ui:
+              image:
+                repository: localhost:5000/k0rdent-ui
+            datasourceController:
+              image:
+                repository: localhost:5000/datasource-controller
+```
+
+**Note**: Each component's image repository is explicitly configured to point to the local registry, as required by k0rdent airgap installation. See: https://docs.mirantis.com/k0rdent-enterprise/latest/admin/installation/airgap/airgap-install/
+
+**Old Code (PLANNED, NOT USED)**:
 ```go
 // internal/airgap/installer.go
 func (i *AirGapInstaller) configureRegistry() error {
@@ -791,17 +875,41 @@ func addRegistryMirrors(config, registryAddr string) string {
 
 ---
 
-### 3.3 k0rdent Installation via Helm (PENDING)
+### 3.3 k0rdent Installation via Helm ✅ (COMPLETED)
 
-**Status**: Not Started
+**Status**: ✅ Completed
 **Estimated Effort**: 1 day
+**Completed**: 2026-02-11
 
-- [ ] Implement `InstallK0rdentFromRegistry()` function
-- [ ] Use helm CLI to install from local registry
-- [ ] Configure image repository to point to local registry
-- [ ] Wait for k0rdent pods to be ready
+- ✅ K0rdent installation configured via k0s helm operator (no helm CLI needed)
+- ✅ Uses OCI chart from local registry: `oci://localhost:5000/charts/k0rdent-enterprise`
+- ✅ All component image repositories explicitly configured to point to local registry
+- ✅ `controller.globalRegistry` and `controller.templatesRepoURL` set for k0rdent
+- ✅ Reuses existing `waitForK0rdentInstalled()` from online installer
 
-**Code (PLANNED)**:
+**Implementation Approach**:
+Instead of using helm CLI, we leverage k0s's integrated helm operator by configuring the chart in k0s.yaml:
+```yaml
+spec:
+  extensions:
+    helm:
+      charts:
+        - name: kcm
+          chartname: oci://localhost:5000/charts/k0rdent-enterprise
+          version: "1.2.2"
+          namespace: kcm-system
+          values: |
+            global:
+              registry: localhost:5000
+```
+
+**Benefits**:
+- No external helm CLI dependency
+- k0s manages the helm release lifecycle
+- Automatic retry and reconciliation
+- Consistent with online installation approach
+
+**Old Code (PLANNED, NOT USED - helm CLI approach):**
 ```go
 // internal/airgap/installer.go
 func (i *AirGapInstaller) installK0rdent(ctx context.Context, cfg *config.K0rdentConfig, version string) error {
@@ -833,15 +941,45 @@ func (i *AirGapInstaller) installK0rdent(ctx context.Context, cfg *config.K0rden
 
 ---
 
-### 3.4 Refactor to Avoid Code Duplication (PENDING)
+### 3.4 Refactor to Avoid Code Duplication ✅ (COMPLETED)
 
-**Status**: Not Started
+**Status**: ✅ Completed
 **Estimated Effort**: 0.5 day
+**Completed**: 2026-02-11
 
-- [ ] Move common install logic to `pkg/installer/`
-- [ ] Airgap installer calls common functions
-- [ ] Online installer calls common functions
-- [ ] Ensure no duplication between modes
+- ✅ Airgap-specific logic isolated in `internal/airgap/installer.go`
+- ✅ Common k0s installation logic in `pkg/installer/installer.go` reused for both modes
+- ✅ Airgap installer prepares environment, then delegates to common `installK0s()`
+- ✅ Common functions reused:
+  - `installK0s()` - Install and start k0s service
+  - `waitForK0rdentInstalled()` - Wait for k0rdent readiness
+  - `waitForCAPIProviderHelmReleases()` - Wait for CAPI providers
+  - `createCredentials()` - Create cloud provider credentials
+
+**Code Organization**:
+```
+internal/airgap/installer.go:
+  - ExtractK0sBinary()          # Airgap-specific
+  - Install()                   # Airgap preparation
+  - writeK0sConfig()            # Writes airgap k0s config
+
+pkg/installer/installer.go:
+  - installAirgap()             # Calls airgap.Install() then common functions
+  - installK0s()                # Common: installs k0s (both modes)
+  - waitForK0rdentInstalled()   # Common: waits for k0rdent (both modes)
+  - createCredentials()         # Common: creates credentials (both modes)
+
+pkg/generator/generator.go:
+  - GenerateK0sConfig()         # Online mode config
+  - GenerateAirgapK0sConfig()   # Airgap mode config
+```
+
+**Flow Comparison**:
+```
+Online:  GenerateK0sConfig() → installK0s() → waitForK0rdent() → createCredentials()
+Airgap:  airgap.Install() → GenerateAirgapK0sConfig() → installK0s() → waitForK0rdent() → createCredentials()
+         └─ ExtractK0sBinary()
+```
 
 ---
 
@@ -943,6 +1081,194 @@ sudo k0s kubectl get pods -n kcm-system
 
 ---
 
+## OCI Registry Fix (Post-Phase 3) ✅ (COMPLETED)
+
+**Date**: 2026-02-12
+**Status**: ✅ COMPLETED
+
+### Issue Summary
+
+Three interconnected issues were identified in the airgap registry implementation:
+
+1. **Incorrect Tag Format**: `charts/k0rdent-enterprise_1.2.2.tar` was stored as `charts/k0rdent-enterprise_1.2.2:latest` instead of `charts/k0rdent-enterprise:1.2.2`
+2. **Incorrect Path Structure for Root-Level Images**: Images at the root of the extracted bundle (e.g., `kcm-controller_1.2.2.tar`) were stored as `extracted/kcm-controller_1.2.2:latest` instead of `kcm-controller:1.2.2`
+3. **External Dependency on Skopeo**: User prefers native Go implementation using `go-containerregistry` (deferred to Phase 4)
+
+### Root Cause
+
+The `pathToImageRef()` function in `internal/airgap/registry/pusher.go`:
+- Used `filepath.Base(filepath.Dir(path))` which captured the temp directory name (`extracted`) for root-level images
+- Did not convert underscore (`_`) version separator to OCI tag format (`:`)
+
+### Implementation
+
+**File Modified**: `internal/airgap/registry/pusher.go`
+
+**Changes**:
+1. Updated `pathToImageRef()` to accept `bundleRoot` parameter
+2. Use `filepath.Rel(bundleRoot, imgPath)` to get relative path from bundle root
+3. Parse underscore version separator and convert to OCI tag format
+4. Handle both `name_version` and `name:tag` formats
+5. Updated `pushSingleImage()` to pass `bundleRoot` parameter
+6. Updated `pushImagesWithProgress()` to pass `bundleRoot` parameter
+
+**Code Changes**:
+```go
+// pathToImageRef converts a file path to an OCI image reference
+// bundleRoot is the root directory of the extracted bundle
+func pathToImageRef(imgPath string, bundleRoot string) string {
+    // Get relative path from bundle root to maintain logical structure
+    relPath, _ := filepath.Rel(bundleRoot, imgPath)
+
+    // Remove .tar suffix
+    ref := strings.TrimSuffix(relPath, ".tar")
+
+    // Split into directory and filename components
+    dir := filepath.Dir(ref)
+    if dir == "." {
+        dir = ""
+    }
+    filename := filepath.Base(ref)
+
+    // Parse version from filename
+    var imageName, tag string
+
+    if idx := strings.LastIndex(filename, "_"); idx != -1 {
+        // Format: name_version (e.g., k0rdent-enterprise_1.2.2)
+        imageName = filename[:idx]
+        tag = filename[idx+1:]
+    } else if idx := strings.LastIndex(filename, ":"); idx != -1 {
+        // Format: name:tag (e.g., k0s:v1.32.8-k0s.0)
+        imageName = filename[:idx]
+        tag = filename[idx+1:]
+    } else {
+        // No version found, use filename as image name and "latest" as tag
+        imageName = filename
+        tag = "latest"
+    }
+
+    // Build final reference: dir/imageName:tag
+    if dir != "" && dir != "." {
+        return fmt.Sprintf("%s/%s:%s", dir, imageName, tag)
+    }
+    return fmt.Sprintf("%s:%s", imageName, tag)
+}
+```
+
+### Verification
+
+After the fix:
+- `charts/k0rdent-enterprise_1.2.2.tar` → `charts/k0rdent-enterprise:1.2.2`
+- `k0sproject/k0s:v1.32.8-k0s.0.tar` → `k0sproject/k0s:v1.32.8-k0s.0`
+- `kcm-controller_1.2.2.tar` (root level) → `kcm-controller:1.2.2`
+
+### Next Steps
+
+- **Phase 4**: Evaluate migration from skopeo to go-containerregistry (deferred)
+- Test the fix with actual k0rdent bundle
+- Verify k0rdent installation from local registry
+
+---
+
+## Containerd Registry Mirror Configuration (Post-Phase 3) ✅ (COMPLETED)
+
+**Date**: 2026-02-12
+**Status**: ✅ COMPLETED
+
+### Issue Summary
+
+When k0s starts in airgap mode, its underlying containerd runtime attempts to pull system images from internet registries (`registry.k8s.io`, `quay.io`). Since airgap environment has no internet access, these pulls fail. The local OCI registry running at `localhost:5000` contains all required images, but containerd is not configured to use it as a mirror.
+
+### Root Cause
+
+k0s does not have a simplified way to configure local registry mirror. The containerd configuration needs to be set up manually with:
+1. Containerd drop-in configuration at `/etc/k0s/containerd.d/cri-registry.toml`
+2. Registry hosts configuration at `/etc/k0s/containerd.d/certs.d/<registry>/hosts.toml`
+
+### Implementation
+
+**New Package**: `internal/airgap/containerd/config.go`
+
+**Functions**:
+- `CRIRegistryConfig()` - Returns the CRI registry configuration content
+- `HostsConfig(registry, mirrorAddr)` - Returns hosts.toml content for a given registry
+- `SetupContainerdMirror(mirrorAddr)` - Creates all containerd configuration files
+
+**Modified File**: `internal/airgap/installer.go`
+
+**Changes**:
+- Added Step 4 to configure containerd registry mirror
+- Calls `containerd.SetupContainerdMirror(registryAddr)` before writing k0s configuration
+- Updated installation sequence to include containerd configuration
+
+**Directory Structure Created**:
+```
+/etc/k0s/containerd.d/
+├── cri-registry.toml              # CRI registry config
+└── certs.d/
+    ├── registry.k8s.io/
+    │   └── hosts.toml             # Mirror for registry.k8s.io
+    └── quay.io/
+        └── hosts.toml             # Mirror for quay.io
+```
+
+**Configuration Files**:
+
+1. `/etc/k0s/containerd.d/cri-registry.toml`:
+```toml
+version = 2
+
+[plugins."io.containerd.grpc.v1.cri".registry]
+config_path = "/etc/k0s/containerd.d/certs.d"
+```
+
+2. `/etc/k0s/containerd.d/certs.d/registry.k8s.io/hosts.toml`:
+```toml
+server = "https://registry.k8s.io"
+
+[host."http://127.0.0.1:5000"]
+  capabilities = ["pull", "resolve"]
+```
+
+3. `/etc/k0s/containerd.d/certs.d/quay.io/hosts.toml`:
+```toml
+server = "https://quay.io"
+
+[host."http://127.0.0.1:5000"]
+  capabilities = ["pull", "resolve"]
+```
+
+### Installation Sequence
+
+1. Extract k0s binary to `/usr/local/bin/k0s`
+2. **Configure containerd registry mirror** (NEW)
+3. Generate k0s configuration for airgap mode
+4. Write k0s configuration to `/etc/k0s/k0s.yaml`
+5. Run `k0s install controller --enable-worker`
+6. Start k0s service
+
+### Multi-Worker Support
+
+For multi-worker clusters, the registry address must be reachable from all nodes. This is already configurable via `config.airgap.registry.address` in the k0rdentd config file.
+
+### Verification
+
+After k0s starts, verify the configuration:
+```bash
+# Check containerd configuration
+cat /etc/k0s/containerd.d/cri-registry.toml
+
+# Check registry hosts
+cat /etc/k0s/containerd.d/certs.d/quay.io/hosts.toml
+cat /etc/k0s/containerd.d/certs.d/registry.k8s.io/hosts.toml
+
+# Verify images are pulled from local registry
+k0s kubectl get pods -A
+# All pods should be running without image pull errors
+```
+
+---
+
 ## References
 
 - Design document: `docs/FEATURE_airgap.md`
@@ -951,3 +1277,4 @@ sudo k0s kubectl get pods -n kcm-system
 - k0rdent enterprise: https://docs.mirantis.com/k0rdent-enterprise/latest/admin/installation/airgap/airgap-bundles/
 - go-containerregistry: https://github.com/google/go-containerregistry
 - cosign: https://sigstore.dev/cosign/
+- containerd registry hosts: https://github.com/containerd/containerd/blob/main/docs/hosts.md

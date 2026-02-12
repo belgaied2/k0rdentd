@@ -785,10 +785,10 @@ clean-airgap:
 **Estimated Effort**: 3 days
 
 **Tasks**:
-1. Implement k0s binary extraction from embedded assets
+1. Implement k0s binary extraction from embedded assets, then copy the extracted binary `k0s-<VERSION>-amd64` to `/usr/local/bin/k0s`
 2. Implement registry configuration in k0s
-3. Implement k0rdent helm installation from local registry
-4. Refactor to reuse common install logic from pkg/installer
+3. Implement k0rdent helm installation from local registry, based on the docs [here](https://docs.mirantis.com/k0rdent-enterprise/latest/admin/installation/airgap/airgap-install/)
+4. Reuse common install logic from pkg/installer. Once `k0s` is available in `/usr/local/bin` and the `k0s.yaml` has the right reference to the local registry, the standard (online mode) `InstallK0s()` should run correctly.
 5. Add multi-worker registry address configuration
 
 **Acceptance Criteria**:

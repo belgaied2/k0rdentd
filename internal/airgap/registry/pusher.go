@@ -45,6 +45,7 @@ func PushImages(bundlePath, registryAddr string) error {
 	}
 
 	// Push images with progress reporting
+	// bundleDir is the root of the extracted bundle (either original dir or temp dir)
 	if err := pushImagesWithProgress(images, bundleDir, registryAddr); err != nil {
 		return err
 	}
@@ -79,7 +80,7 @@ func findOCIArchives(bundleDir string) ([]string, error) {
 }
 
 // pushImagesWithProgress pushes images and reports progress
-func pushImagesWithProgress(images []string, bundleDir, registryAddr string) error {
+func pushImagesWithProgress(images []string, bundleRoot, registryAddr string) error {
 	logger := getLogger()
 	total := len(images)
 
@@ -97,10 +98,10 @@ func pushImagesWithProgress(images []string, bundleDir, registryAddr string) err
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
-			relPath, _ := filepath.Rel(bundleDir, path)
+			relPath, _ := filepath.Rel(bundleRoot, path)
 			logger.Infof("[%d/%d] Pushing: %s", index+1, total, relPath)
 
-			if err := pushSingleImage(path, registryAddr); err != nil {
+			if err := pushSingleImage(path, registryAddr, bundleRoot); err != nil {
 				logger.Warnf("Failed to push %s: %v", relPath, err)
 				errors <- err
 			}
@@ -125,14 +126,14 @@ func pushImagesWithProgress(images []string, bundleDir, registryAddr string) err
 }
 
 // pushSingleImage pushes a single image to the registry
-func pushSingleImage(imgPath, registryAddr string) error {
-	// Build image reference from path
+func pushSingleImage(imgPath, registryAddr string, bundleRoot string) error {
+	// Build image reference from path using bundle root
 	// Example: bundle/k0sproject/k0s:v1.32.8-k0s.0.tar -> localhost:5000/k0sproject/k0s:v1.32.8-k0s.0
-	imgRef := pathToImageRef(imgPath)
+	imgRef := pathToImageRef(imgPath, bundleRoot)
 	dest := fmt.Sprintf("docker://%s/%s", registryAddr, imgRef)
 
 	// Use skopeo to copy the image
-	cmd := exec.Command("skopeo", "copy", "--dest-tls-verify=false", "oci-archive:"+imgPath, dest) // TODO: Remove the tls-verify=false for production
+	cmd := exec.Command("skopeo", "copy", "--insecure-policy", "--dest-tls-verify=false", "oci-archive:"+imgPath, dest) // TODO: Remove the tls-verify=false for production
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%w, output: %s", err, string(output))
@@ -142,20 +143,45 @@ func pushSingleImage(imgPath, registryAddr string) error {
 }
 
 // pathToImageRef converts a file path to an OCI image reference
-func pathToImageRef(path string) string {
-	// Extract directory structure as image name
-	// Example: /tmp/bundle/k0sproject/k0s:v1.32.8-k0s.0.tar -> k0sproject/k0s:v1.32.8-k0s.0
-	filename := filepath.Base(path)
-	// Remove .tar suffix
-	ref := strings.TrimSuffix(filename, ".tar")
+// bundleRoot is the root directory of the extracted bundle
+func pathToImageRef(imgPath string, bundleRoot string) string {
+	// Get relative path from bundle root to maintain logical structure
+	// Example: /tmp/k0rdent-bundle-xxx/extracted/charts/k0rdent-enterprise_1.2.2.tar
+	//          -> charts/k0rdent-enterprise_1.2.2
+	relPath, _ := filepath.Rel(bundleRoot, imgPath)
 
-	// Get parent directory as image namespace
-	dir := filepath.Base(filepath.Dir(path))
-	if dir != "." && dir != "/" && !strings.HasPrefix(ref, dir) {
-		ref = dir + "/" + ref
+	// Remove .tar suffix
+	ref := strings.TrimSuffix(relPath, ".tar")
+
+	// Split into directory and filename components
+	dir := filepath.Dir(ref)
+	if dir == "." {
+		dir = ""
+	}
+	filename := filepath.Base(ref)
+
+	// Parse version from filename
+	var imageName, tag string
+
+	if idx := strings.LastIndex(filename, "_"); idx != -1 {
+		// Format: name_version (e.g., k0rdent-enterprise_1.2.2)
+		imageName = filename[:idx]
+		tag = filename[idx+1:]
+	} else if idx := strings.LastIndex(filename, ":"); idx != -1 {
+		// Format: name:tag (e.g., k0s:v1.32.8-k0s.0)
+		imageName = filename[:idx]
+		tag = filename[idx+1:]
+	} else {
+		// No version found, use filename as image name and "latest" as tag
+		imageName = filename
+		tag = "latest"
 	}
 
-	return ref
+	// Build final reference: dir/imageName:tag
+	if dir != "" && dir != "." {
+		return fmt.Sprintf("%s/%s:%s", dir, imageName, tag)
+	}
+	return fmt.Sprintf("%s:%s", imageName, tag)
 }
 
 // extractTarGz extracts a tar.gz archive to a directory

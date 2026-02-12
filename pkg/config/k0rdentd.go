@@ -11,6 +11,7 @@ import (
 type K0rdentdConfig struct {
 	K0s      K0sConfig     `yaml:"k0s"`
 	K0rdent  K0rdentConfig `yaml:"k0rdent"`
+	Airgap   AirgapConfig  `yaml:"airgap,omitempty"`
 	Debug    bool          `yaml:"debug,omitempty"`
 	LogLevel string        `yaml:"logLevel,omitempty"`
 }
@@ -102,6 +103,22 @@ type K0rdentHelmConfig struct {
 	Chart     string                 `yaml:"chart"`
 	Namespace string                 `yaml:"namespace"`
 	Values    map[string]interface{} `yaml:"values,omitempty"`
+}
+
+// AirgapConfig represents airgap-specific configuration
+type AirgapConfig struct {
+	// BundlePath is the path to the k0rdent airgap bundle
+	// Can be a tar.gz archive or an extracted directory
+	BundlePath string         `yaml:"bundlePath,omitempty"`
+	Registry   RegistryConfig `yaml:"registry,omitempty"`
+}
+
+// RegistryConfig represents local registry configuration for airgap mode
+type RegistryConfig struct {
+	// Address is the local registry address (e.g., localhost:5000 or 192.168.1.10:5000)
+	Address string `yaml:"address,omitempty"`
+	// Insecure allows connecting to HTTP registries (default: true for localhost)
+	Insecure bool `yaml:"insecure,omitempty"`
 }
 
 // LoadConfig loads configuration from YAML file

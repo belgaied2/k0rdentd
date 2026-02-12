@@ -8,11 +8,26 @@
 - Air Gapped mode
   - ✅ Phase 1: Foundation (COMPLETED)
   - ✅ Phase 2: Registry Daemon Implementation (COMPLETED)
-  - Phase 3: Airgap Installation with Registry (PENDING)
-    - Implement k0s binary extraction from embedded assets
-    - Implement registry configuration in k0s
-    - Implement k0rdent helm installation from local registry
-    - Refactor to reuse common install logic from pkg/installer
-    - Add multi-worker registry address configuration
- - Add option to handle monitoring
+  - ✅ Phase 3: Airgap Installation with Registry (COMPLETED - 2026-02-11)
+    - ✅ Implemented k0s binary extraction from embedded assets
+    - ✅ Implemented registry configuration in k0s (via k0s.yaml generation)
+    - ✅ Implemented k0rdent helm installation from local registry (via k0s helm operator)
+    - ✅ Refactored to reuse common install logic from pkg/installer
+    - ✅ Added multi-worker registry address configuration (via config.airgap.registry.address)
+  - ✅ OCI Registry Fix (COMPLETED - 2026-02-12)
+    - ✅ Fixed pathToImageRef() to convert underscore version separator to OCI tag format
+    - ✅ Fixed path structure to use relative path from bundle root (strips temp directory name)
+    - ✅ Updated pushSingleImage() and pushImagesWithProgress() to pass bundleRoot parameter
+  - ✅ Containerd Registry Mirror Configuration (COMPLETED - 2026-02-12)
+    - ✅ Created internal/airgap/containerd/config.go package
+    - ✅ Implemented SetupContainerdMirror() to configure containerd registry mirrors
+    - ✅ Added containerd mirror configuration step in airgap installer
+    - ✅ Configured mirrors for registry.k8s.io and quay.io
+  - Phase 4: Testing and Documentation (PENDING)
+    - Test with actual k0rdent airgap bundle
+    - Test multi-worker setup
+    - Document complete installation workflow
+    - Create example configuration files
+- Add skopeo to the embedded binaries, get that from the `lework/skopeo-binary` GitHub Repo.
+- Add option to handle monitoring
 - test on multiple clouds

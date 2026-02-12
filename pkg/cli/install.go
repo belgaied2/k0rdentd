@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 
+	"github.com/belgaied2/k0rdentd/internal/airgap"
 	"github.com/belgaied2/k0rdentd/pkg/config"
 	"github.com/belgaied2/k0rdentd/pkg/generator"
 	"github.com/belgaied2/k0rdentd/pkg/installer"
@@ -58,7 +59,7 @@ func installAction(c *cli.Context) error {
 	}
 
 	// If k0s is not installed, install it
-	if !k0sCheck.Installed {
+	if !airgap.IsAirGap() && !k0sCheck.Installed {
 		utils.GetLogger().Info("k0s binary not found, installing...")
 		if err := k0s.InstallK0s(); err != nil {
 			return fmt.Errorf("failed to install k0s: %w", err)
@@ -76,6 +77,9 @@ func installAction(c *cli.Context) error {
 		c.Bool("debug"),
 		c.Bool("dry-run"),
 	)
+
+	// Set full config for airgap support
+	installer.SetConfig(cfg)
 
 	if err := installer.Install(k0sConfig, &cfg.K0rdent); err != nil {
 		return fmt.Errorf("installation failed: %w", err)

@@ -23,14 +23,22 @@ type Installer struct {
 	debug     bool
 	dryRun    bool
 	k8sClient *k8sclient.Client
+	config    *config.K0rdentdConfig // Store full config for airgap support
+	airgapped bool
 }
 
 // NewInstaller creates a new installer instance
 func NewInstaller(debug, dryRun bool) *Installer {
 	return &Installer{
-		debug:  debug,
-		dryRun: dryRun,
+		debug:     debug,
+		dryRun:    dryRun,
+		airgapped: false,
 	}
+}
+
+// SetConfig sets the full configuration (needed for airgap support)
+func (i *Installer) SetConfig(cfg *config.K0rdentdConfig) {
+	i.config = cfg
 }
 
 // waitForWithSpinner waits for a condition with a spinner animation
@@ -127,41 +135,69 @@ func (i *Installer) Install(k0sConfig []byte, k0rdentConfig *config.K0rdentConfi
 // installAirgap performs air-gapped installation
 func (i *Installer) installAirgap(k0rdentConfig *config.K0rdentConfig) error {
 	logger := utils.GetLogger()
+	i.airgapped = true
 
 	metadata := airgap.GetBuildMetadata()
-	logger.Infof("Air-gapped installation (K0s: %s, K0rdent: %s)",
-		metadata.K0sVersion, metadata.K0rdentVersion)
+	logger.Infof("Air-gapped installation (K0s: %s)",
+		metadata.K0sVersion)
 
 	if i.dryRun {
 		logger.Infof("📝 Dry run mode - airgap installation steps:")
-		logger.Infof("1. Install k0s from embedded binary")
-		logger.Infof("2. Load embedded image bundles")
-		logger.Infof("3. Install k0rdent from embedded helm chart")
+		logger.Infof("1. Extract k0rdent version from bundle")
+		logger.Infof("2. Extract k0s binary from embedded assets")
+		logger.Infof("3. Generate k0s configuration for airgap mode")
+		logger.Infof("4. Install k0s with embedded binary")
+		logger.Infof("5. k0s will automatically install k0rdent from local registry via helm operator")
 		if k0rdentConfig != nil && k0rdentConfig.Credentials.HasCredentials() {
-			logger.Infof("4. Create cloud provider credentials")
+			logger.Infof("6. Create cloud provider credentials")
 		}
 		return nil
 	}
 
-	// TODO: Phase 3 - Implement airgap installation with registry daemon
-	// The airgap installer needs to be rewritten to work with the registry daemon approach.
-	// It should:
-	// 1. Extract k0s binary from embedded assets
-	// 2. Install and configure k0s
-	// 3. Configure k0s to use local registry (localhost:5000 or configured address)
-	// 4. Install k0rdent via helm from local registry
-	//
-	// For now, return an error with clear instructions.
-	return fmt.Errorf("airgap installation is not yet implemented for the registry daemon approach\n" +
-		"\n" +
-		"To use the airgap feature:\n" +
-		"1. Start the registry daemon first:\n" +
-		"   sudo k0rdentd registry --bundle-path <bundle.tar.gz> --port 5000\n" +
-		"\n" +
-		"2. Then run the airgap installation (Phase 3 - not yet implemented):\n" +
-		"   sudo k0rdentd install --airgap-bundle-path <bundle.tar.gz> --registry-address localhost:5000\n" +
-		"\n" +
-		"See docs/FEATURE_airgap.md for more details")
+	// Ensure we have the full config for airgap
+	if i.config == nil {
+		return fmt.Errorf("airgap installation requires full configuration, but config is not set")
+	}
+
+	// Create airgap installer
+	agInstaller := airgap.NewInstaller(i.config, i.debug)
+
+	// Perform airgap-specific preparation (extract k0s, generate config)
+	ctx := context.Background()
+	if err := agInstaller.Install(ctx); err != nil {
+		return fmt.Errorf("airgap preparation failed: %w", err)
+	}
+
+	// Now proceed with standard k0s installation
+	// The k0s binary is now at /usr/local/bin/k0s
+	// The k0s config is at /etc/k0s/k0s.yaml with airgap settings
+	logger.Info("")
+	logger.Info("Installing k0s...")
+	if err := i.installK0s(); err != nil {
+		return fmt.Errorf("failed to install k0s: %w", err)
+	}
+
+	// Wait for k0rdent to be installed via k0s helm operator
+	if err := i.waitForK0rdentInstalled(); err != nil {
+		return fmt.Errorf("k0rdent installation failed: %w", err)
+	}
+
+	// Wait for CAPI provider Helm releases if credentials are configured
+	if k0rdentConfig != nil && k0rdentConfig.Credentials.HasCredentials() {
+		if err := i.waitForCAPIProviderHelmReleases(&k0rdentConfig.Credentials); err != nil {
+			logger.Warnf("⚠️ CAPI infrastructure providers failed to become ready: %v. Will attempt credential creation anyway.", err)
+		}
+	}
+
+	// Create credentials if configured
+	if k0rdentConfig != nil && k0rdentConfig.Credentials.HasCredentials() {
+		if err := i.createCredentials(&k0rdentConfig.Credentials); err != nil {
+			logger.Warnf("⚠️ Failed to create credentials: %v. You may need to create them manually through the K0rdent UI.", err)
+		}
+	}
+
+	logger.Info("✅ Airgap installation completed successfully")
+	return nil
 }
 
 // createCredentials creates cloud provider credentials in the k0rdent cluster
@@ -519,7 +555,9 @@ func (i *Installer) areK0rdentDeploymentsReady() (bool, error) {
 		"kcm-k0rdent-enterprise-controller-manager", //TODO: Check that it works for k0rdent OSS as well.
 		"kcm-k0rdent-ui",
 		"kcm-rbac-manager",
-		"kcm-regional-telemetry",
+	}
+	if !i.airgapped {
+		requiredDeployments = append(requiredDeployments, "kcm-regional-telemetry")
 	}
 
 	return i.k8sClient.AreAllDeploymentsReady(ctx, "kcm-system", requiredDeployments)

@@ -39,9 +39,11 @@ K0rdentd is a CLI tool which deploys K0s and K0rdent on the VM it runs on. It fo
 
 ## Documentation
 
-- Always use the Context7 MCP server when you need use library/API documentation, setup steps, architecture decisions or code generation. 
+- Prefer using `context7` when you need library/API documentation, setup steps, architecture decisions or code generation. 
 - More specifically if you need to do ANYTHING related to :
   - `k0s`: check `k0sproject/k0s` on context7 before generating code or suggesting architecture.
   - `k0rdent`: check all the following `docs.k0rdent.io/latest`, `k0rdent/kcm` and `k0rdent/docs`
 - For all other libraries, before suggesting code, use the `resolve-library-id` tool to find the correct documentation context.
 - Whenever you implement a new feature, document its design choices in the `./docs` directory. Also, always read all files in the `./docs` directory to understand previous design choices.
+- You can track general TODOs in the `./TODO.md`
+- At the end of a code modification round, once testing and verification is done and before sending the user feedback, make sure to reflect that in feature/bug documentation in `./docs` and potentially in the corresponding implementation plan.

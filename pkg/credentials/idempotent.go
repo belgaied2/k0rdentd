@@ -64,7 +64,7 @@ func (m *Manager) createIfNotExists(
 		return nil
 	}
 
-	utils.GetLogger().Infof("Creating %s %s/%s", spec.Type, spec.Namespace, spec.Name)
+	utils.GetLogger().Debugf("Creating %s %s/%s", spec.Type, spec.Namespace, spec.Name)
 
 	if err := createFn(ctx); err != nil {
 		return fmt.Errorf("failed to create %s %s/%s: %w", spec.Type, spec.Namespace, spec.Name, err)

@@ -5,7 +5,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 BUILD_TIME ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
 # k0s and k0rdent versions for airgap builds
-K0S_VERSION ?= v1.31.2+k0s.0
+K0S_VERSION ?= v1.32.8+k0s.0
 K0RDENT_VERSION ?= 1.2.2
 
 # Build directories
