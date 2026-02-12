@@ -127,31 +127,31 @@ func (i *Installer) Install(ctx context.Context) error {
 	// Step 1: Extract k0rdent version from bundle (if bundle path is configured)
 	var k0rdentVersion string
 	if i.GetBundlePath() != "" {
-		logger.Infof("Extracting k0rdent version from bundle: %s", i.GetBundlePath())
+		fmt.Printf("Extracting k0rdent version from bundle: %s", i.GetBundlePath())
 		version, err := bundle.ExtractK0rdentVersion(i.GetBundlePath())
 		if err != nil {
 			logger.Warnf("⚠️ Failed to extract version from bundle: %v. Using config version.", err)
 			k0rdentVersion = i.config.K0rdent.Version
 		} else {
 			k0rdentVersion = version
-			logger.Infof("✓ K0rdent version from bundle: %s", k0rdentVersion)
+			fmt.Printf("\r✅ K0rdent version from bundle: %s\033[K\n", k0rdentVersion)
 			// Update config with extracted version
 			i.config.K0rdent.Version = k0rdentVersion
 		}
 	} else {
 		k0rdentVersion = i.config.K0rdent.Version
-		logger.Infof("Using k0rdent version from config: %s", k0rdentVersion)
+		fmt.Printf("Using k0rdent version from config: %s", k0rdentVersion)
 	}
 
 	// Step 2: Extract k0s binary from embedded assets
-	logger.Info("Extracting k0s binary from embedded assets...")
+	fmt.Printf("Extracting k0s binary from embedded assets...")
 	if err := i.ExtractK0sBinary(); err != nil {
 		return fmt.Errorf("failed to extract k0s binary: %w", err)
 	}
-	logger.Info("✓ K0s binary extracted to /usr/local/bin/k0s")
+	fmt.Printf("\r✅ K0s binary extracted to /usr/local/bin/k0s\033[K\n")
 
 	// Step 3: Generate k0s configuration for airgap mode
-	logger.Info("Generating k0s configuration for airgap mode...")
+	fmt.Printf("Generating k0s configuration for airgap mode...")
 	registryAddr := i.GetRegistryAddress()
 	insecure := i.IsRegistryInsecure()
 
@@ -164,30 +164,24 @@ func (i *Installer) Install(ctx context.Context) error {
 		logger.Debugf("Generated k0s config:\n%s", string(k0sConfigBytes))
 	}
 
-	logger.Infof("✓ K0s configuration generated (registry: %s, insecure: %t)", registryAddr, insecure)
+	fmt.Printf("\r✅ K0s configuration generated (registry: %s, insecure: %t)\033[K\n", registryAddr, insecure)
 
 	// Step 4: Configure containerd registry mirror
-	logger.Info("Configuring containerd registry mirror...")
+	fmt.Printf("Configuring containerd registry mirror...")
 	if err := containerd.SetupContainerdMirror(registryAddr); err != nil {
 		return fmt.Errorf("failed to configure containerd mirror: %w", err)
 	}
-	logger.Infof("✓ Containerd registry mirror configured (local registry: %s)", registryAddr)
+	fmt.Printf("\r✅ Containerd registry mirror configured (local registry: %s)\033[K\n", registryAddr)
 
 	// Step 5: Write k0s configuration
-	logger.Info("Writing k0s configuration to /etc/k0s/k0s.yaml...")
+	fmt.Printf("Writing k0s configuration to /etc/k0s/k0s.yaml...")
 	if err := i.writeK0sConfig(k0sConfigBytes); err != nil {
 		return fmt.Errorf("failed to write k0s config: %w", err)
 	}
 
-	logger.Info("✓ K0s configuration written")
+	fmt.Printf("\r✅ K0s configuration written\033[K\n")
 
-	logger.Info("✅ Airgap installation preparation complete")
-	logger.Info("")
-	logger.Info("Next steps:")
-	logger.Info("  1. k0s binary is installed at /usr/local/bin/k0s")
-	logger.Info("  2. containerd registry mirror is configured at /etc/k0s/containerd.d/")
-	logger.Info("  3. k0s configuration is ready at /etc/k0s/k0s.yaml")
-	logger.Info("  4. The installer will now proceed with k0s installation")
+	logger.Info("\r✅ Airgap installation preparation complete")
 
 	return nil
 }
