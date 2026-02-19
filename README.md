@@ -51,19 +51,15 @@ graph TD
 
 ## Installation
 
-### Prerequisites
+### Downloading the online version
+`K0rdentd` can be installed using a single curl command. 
 
-- Go 1.21 or higher
-- k0s binary (will be installed by k0rdentd)
-- Helm 3.x (required for K0rdent installation)
-
-### Downloading from Release page
-`K0rdentd` releases are available for Linux on three architectures: AMD64, ARM64 and ARMv7.
-Files are named: `k0rdentd-<VERSION>-linux-<ARCH>.tar.gz`.
-
-Example for v0.1.0:
+Installing the latest version:
 ```bash
-curl -L https://github.com/belgaied2/k0rdentd/releases/download/v0.1.0/k0rdentd-v0.1.0-linux-amd64.tar.gz | tar -xz -C /tmp && chmod +x /tmp/k0rdentd && sudo mv /tmp/k0rdentd /usr/local/bin/
+curl -sfL https://k0rdentd.belgai.de | sudo bash
+
+# Verify installation
+k0rdentd version
 ```
 
 ### Building from Source
@@ -79,8 +75,6 @@ go build -o k0rdentd ./cmd/k0rdentd
 # Make it executable (Linux/Mac)
 chmod +x k0rdentd
 ```
-
-### Installing k0rdentd
 
 After building, you can install k0rdentd to your system:
 
@@ -100,34 +94,28 @@ k0rdentd version
 
 ```bash
 # Using default configuration file
-k0rdentd install
+sudo k0rdentd install
 
 # Using custom configuration file
-k0rdentd install --config-file /path/to/config.yaml
+sudo k0rdentd install --config-file /path/to/config.yaml
 
 # Dry-run mode (shows what would be done)
-k0rdentd install --dry-run
+sudo k0rdentd install --dry-run
 
 # With debug logging
-k0rdentd install --debug
+sudo k0rdentd install --debug
 ```
 
 #### 2. Uninstall K0s and K0rdent
 
 ```bash
-k0rdentd uninstall
+sudo k0rdentd uninstall
 ```
 
 #### 3. View Version Information
 
 ```bash
 k0rdentd version
-```
-
-#### 4. Configure k0rdentd
-
-```bash
-k0rdentd config
 ```
 
 ### Configuration
@@ -290,54 +278,6 @@ k0rdentd install --dry-run
 
 # Check version
 k0rdentd version
-```
-
-## Development
-
-### Project Structure
-
-```
-.
-├── cmd/
-│   └── k0rdentd/
-│       └── main.go          # CLI entry point
-├── pkg/
-│   ├── cli/                # CLI command implementations
-│   │   ├── install.go
-│   │   ├── uninstall.go
-│   │   ├── version.go
-│   │   └── config.go
-│   ├── config/             # Configuration management
-│   │   ├── k0rdentd.go
-│   │   └── config_test.go
-│   ├── generator/          # K0s config generation
-│   │   └── generator.go
-│   ├── installer/          # Installation logic
-│   │   └── installer.go
-│   └── utils/              # Utility functions
-│       ├── logging.go
-│       └── validation.go
-├── internal/
-│   └── test/               # Test utilities
-├── examples/               # Example configurations
-│   └── k0rdentd.yaml
-├── scripts/                # Build and deployment scripts
-├── go.mod                  # Go module definition
-├── go.sum                  # Go dependencies
-└── README.md               # Project documentation
-```
-
-### Running Tests
-
-```bash
-# Run all tests
-go test ./...
-
-# Run tests with coverage
-go test -cover ./...
-
-# Run tests with ginkgo/gomega
-ginkgo -v ./...
 ```
 
 ### Code Style
