@@ -1,0 +1,98 @@
+site_name: K0rdentd Documentation
+site_description: A CLI tool to deploy K0s and K0rdent on VMs
+site_author: Belgaied2
+site_url: https://k0rdentd.belgai.de/docs
+
+repo_name: belgaied2/k0rdentd
+repo_url: https://github.com/belgaied2/k0rdentd
+
+# Documentation directory
+docs_dir: docs
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - footnotes
+  - meta
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search
+  - mermaid2
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/belgaied2/k0rdentd
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Deploying K0rdent: getting-started/quick-start.md
+    - Configuration: getting-started/configuration.md
+  - User Guide:
+    - CLI Reference: user-guide/cli-reference.md
+    - Airgap Installation: user-guide/airgap-installation.md
+    - Cloud Credentials: user-guide/cloud-credentials.md
+    - Exposing UI: user-guide/exposing-ui.md
+  - Airgap Support:
+    - Airgap Support: airgap/airgap.md
+    - Containerd Mirror: airgap/containerd-mirror.md
+    - K0rdent Enterprise Airgap Bundle: airgap/bundle-catalog.md
+  - Development:
+    - Contributing: development/contributing.md
+    - Testing: development/testing.md
+    - Release Process: development/release-process.md
+  - Architecture:
+    - Overview: architecture/overview.md
+    - System Design: architecture/system-design.md
+    - Components: architecture/components.md
