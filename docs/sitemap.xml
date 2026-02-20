@@ -1,71 +1,71 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://belgaied2.github.io/k0rdentd/</loc>
-         <lastmod>2026-02-19</lastmod>
+         <loc>https://k0rdentd.belgai.de/docs/</loc>
+         <lastmod>2026-02-20</lastmod>
     </url>
     <url>
-         <loc>https://belgaied2.github.io/k0rdentd/airgap/airgap/</loc>
-         <lastmod>2026-02-19</lastmod>
+         <loc>https://k0rdentd.belgai.de/docs/airgap/airgap/</loc>
+         <lastmod>2026-02-20</lastmod>
     </url>
     <url>
-         <loc>https://belgaied2.github.io/k0rdentd/airgap/bundle-catalog/</loc>
-         <lastmod>2026-02-19</lastmod>
+         <loc>https://k0rdentd.belgai.de/docs/airgap/bundle-catalog/</loc>
+         <lastmod>2026-02-20</lastmod>
     </url>
     <url>
-         <loc>https://belgaied2.github.io/k0rdentd/airgap/containerd-mirror/</loc>
-         <lastmod>2026-02-19</lastmod>
+         <loc>https://k0rdentd.belgai.de/docs/airgap/containerd-mirror/</loc>
+         <lastmod>2026-02-20</lastmod>
     </url>
     <url>
-         <loc>https://belgaied2.github.io/k0rdentd/architecture/components/</loc>
-         <lastmod>2026-02-19</lastmod>
+         <loc>https://k0rdentd.belgai.de/docs/architecture/components/</loc>
+         <lastmod>2026-02-20</lastmod>
     </url>
     <url>
-         <loc>https://belgaied2.github.io/k0rdentd/architecture/overview/</loc>
-         <lastmod>2026-02-19</lastmod>
+         <loc>https://k0rdentd.belgai.de/docs/architecture/overview/</loc>
+         <lastmod>2026-02-20</lastmod>
     </url>
     <url>
-         <loc>https://belgaied2.github.io/k0rdentd/architecture/system-design/</loc>
-         <lastmod>2026-02-19</lastmod>
+         <loc>https://k0rdentd.belgai.de/docs/architecture/system-design/</loc>
+         <lastmod>2026-02-20</lastmod>
     </url>
     <url>
-         <loc>https://belgaied2.github.io/k0rdentd/development/contributing/</loc>
-         <lastmod>2026-02-19</lastmod>
+         <loc>https://k0rdentd.belgai.de/docs/development/contributing/</loc>
+         <lastmod>2026-02-20</lastmod>
     </url>
     <url>
-         <loc>https://belgaied2.github.io/k0rdentd/development/release-process/</loc>
-         <lastmod>2026-02-19</lastmod>
+         <loc>https://k0rdentd.belgai.de/docs/development/release-process/</loc>
+         <lastmod>2026-02-20</lastmod>
     </url>
     <url>
-         <loc>https://belgaied2.github.io/k0rdentd/development/testing/</loc>
-         <lastmod>2026-02-19</lastmod>
+         <loc>https://k0rdentd.belgai.de/docs/development/testing/</loc>
+         <lastmod>2026-02-20</lastmod>
     </url>
     <url>
-         <loc>https://belgaied2.github.io/k0rdentd/getting-started/configuration/</loc>
-         <lastmod>2026-02-19</lastmod>
+         <loc>https://k0rdentd.belgai.de/docs/getting-started/configuration/</loc>
+         <lastmod>2026-02-20</lastmod>
     </url>
     <url>
-         <loc>https://belgaied2.github.io/k0rdentd/getting-started/installation/</loc>
-         <lastmod>2026-02-19</lastmod>
+         <loc>https://k0rdentd.belgai.de/docs/getting-started/installation/</loc>
+         <lastmod>2026-02-20</lastmod>
     </url>
     <url>
-         <loc>https://belgaied2.github.io/k0rdentd/getting-started/quick-start/</loc>
-         <lastmod>2026-02-19</lastmod>
+         <loc>https://k0rdentd.belgai.de/docs/getting-started/quick-start/</loc>
+         <lastmod>2026-02-20</lastmod>
     </url>
     <url>
-         <loc>https://belgaied2.github.io/k0rdentd/user-guide/airgap-installation/</loc>
-         <lastmod>2026-02-19</lastmod>
+         <loc>https://k0rdentd.belgai.de/docs/user-guide/airgap-installation/</loc>
+         <lastmod>2026-02-20</lastmod>
     </url>
     <url>
-         <loc>https://belgaied2.github.io/k0rdentd/user-guide/cli-reference/</loc>
-         <lastmod>2026-02-19</lastmod>
+         <loc>https://k0rdentd.belgai.de/docs/user-guide/cli-reference/</loc>
+         <lastmod>2026-02-20</lastmod>
     </url>
     <url>
-         <loc>https://belgaied2.github.io/k0rdentd/user-guide/cloud-credentials/</loc>
-         <lastmod>2026-02-19</lastmod>
+         <loc>https://k0rdentd.belgai.de/docs/user-guide/cloud-credentials/</loc>
+         <lastmod>2026-02-20</lastmod>
     </url>
     <url>
-         <loc>https://belgaied2.github.io/k0rdentd/user-guide/exposing-ui/</loc>
-         <lastmod>2026-02-19</lastmod>
+         <loc>https://k0rdentd.belgai.de/docs/user-guide/exposing-ui/</loc>
+         <lastmod>2026-02-20</lastmod>
     </url>
 </urlset>
