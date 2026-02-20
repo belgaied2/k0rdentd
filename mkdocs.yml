@@ -39,6 +39,8 @@ theme:
     - content.code.annotate
 
 markdown_extensions:
+  - attr_list
+  - md_in_html
   - admonition
   - codehilite
   - footnotes
