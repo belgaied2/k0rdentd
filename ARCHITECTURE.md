@@ -6,32 +6,57 @@ K0rdentd is a CLI tool that automates the deployment of K0s and K0rdent on a VM.
 
 ## System Architecture
 
+### Online Mode
+
 ```mermaid
 graph TD
     A[User] -->|CLI Commands| B[k0rdentd]
     B -->|Read Config| C["/etc/k0rdentd/k0rdent.yaml"]
     B -->|Generate Config| D["/etc/k0s/k0s.yaml"]
-    B -->|Execute| E[k0s binary]
+    B -->|Download k0s| E[k0s binary]
     E -->|Deploy| F[K0s Cluster]
     E -->|Helm Extension| G[K0rdent]
     B -.->|Retrieve Kubeconfig| H[k8sclient]
     H -.->|client-go| F
 ```
 
+### Airgap Mode
+
+```mermaid
+graph TD
+    A[User] -->|k0rdentd registry| B[Registry Daemon]
+    B -->|Extract skopeo| C[/usr/bin/skopeo]
+    B -->|Extract bundle| D[k0rdent Bundle]
+    D -->|Push images| E[Local OCI Registry<br/>localhost:5000]
+
+    A -->|k0rdentd install --airgap| F[Airgap Installer]
+    F -->|Extract k0s binary| G[/usr/local/bin/k0s]
+    F -->|Configure containerd| H[/etc/k0s/containerd.d/]
+    F -->|Generate airgap config| I["/etc/k0s/k0s.yaml"]
+    F -->|Install k0s| G
+    G -->|Start cluster| J[K0s Cluster]
+    J -->|Helm Extension| K[Pull from E]
+    K --> L[K0rdent Deployed]
+```
+
 ## Component Design
 
 ### 1. CLI Interface (urfave/cli)
 
-The CLI will support the following commands:
+The CLI supports the following commands:
 - `k0rdentd install` - Install K0s and K0rdent
-- `k0rdentd uninstall` - Uninstall K0s and K0rdent  
+- `k0rdentd uninstall` - Uninstall K0s and K0rdent
 - `k0rdentd version` - Show version information
 - `k0rdentd config` - Manage configuration
+- `k0rdentd registry` - Start OCI registry daemon for airgap installations
+- `k0rdentd expose-ui` - Expose k0rdent UI via NodePort/Ingress
+- `k0rdentd export-worker-artifacts` - Export worker artifacts for multi-worker clusters
+- `k0rdentd show-flavor` - Show build flavor (online/airgap)
 
 CLI Flags:
-- `--config-file` - Path to config file (default: /etc/k0rdentd/k0rdentd.yaml)
-- `--debug` - Enable debug logging
-- `--dry-run` - Show what would be done without making changes
+- `--config-file`, `-c` - Path to config file (default: /etc/k0rdentd/k0rdentd.yaml)
+- `--debug`, `-d` - Enable debug logging
+- `--dry-run`, `-n` - Show what would be done without making changes
 
 ### 2. Configuration Management
 
@@ -55,15 +80,43 @@ k0s:
 
 # K0rdent Configuration
 k0rdent:
-  version: "v0.1.0"
+  version: "1.2.2"
   helm:
-    chart: "k0rdent/k0rdent"
-    namespace: "k0rdent-system"
+    chart: "oci://registry.mirantis.com/k0rdent-enterprise/charts/k0rdent-enterprise"
+    namespace: "kcm-system"
     values:
       replicaCount: 1
       service:
         type: ClusterIP
         port: 80
+
+# Credentials Configuration (optional)
+credentials:
+  aws:
+    - name: aws-creds
+      region: us-east-1
+      accessKeyID: "AKIAIOSFODNN7EXAMPLE"
+      secretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  azure:
+    - name: azure-creds
+      subscriptionID: "00000000-0000-0000-0000-000000000000"
+      tenantID: "00000000-0000-0000-0000-000000000000"
+      clientID: "00000000-0000-0000-0000-000000000000"
+      clientSecret: "client-secret-value"
+  openstack:
+    - name: openstack-creds
+      authURL: "https://openstack.example.com:5000/v3"
+      username: "admin"
+      password: "password"
+      projectName: "admin"
+      domainName: "Default"
+
+# Airgap Configuration (optional)
+airgap:
+  bundlePath: "/opt/airgap-bundle-1.2.2.tar.gz"
+  registry:
+    address: "localhost:5000"
+    insecure: true
 
 # Global Settings
 debug: false
@@ -77,7 +130,7 @@ The tool will:
 2. Generate a K0s-compatible configuration at /etc/k0s/k0s.yaml
 3. Include helm extensions for k0rdent installation
 
-Example generated k0s.yaml:
+Example generated k0s.yaml (online mode):
 ```yaml
 apiVersion: k0s.k0sproject.io/v1beta1
 kind: Cluster
@@ -97,19 +150,59 @@ spec:
       peerAddress: "127.0.0.1"
   extensions:
     helm:
-      repositories:
-        - name: k0rdent
-          url: https://charts.k0rdent.io
       charts:
-        - name: k0rdent
-          chartname: k0rdent/k0rdent
-          version: "v0.1.0"
-          namespace: k0rdent-system
+        - name: kcm
+          chartname: oci://registry.mirantis.com/k0rdent-enterprise/charts/k0rdent-enterprise
+          version: "1.2.2"
+          namespace: kcm-system
           values: |
-            replicaCount: 1
-            service:
-              type: ClusterIP
-              port: 80
+            controller:
+              globalRegistry: ""
+            regional:
+              telemetry:
+                mode: enabled
+            rbac:
+              manager:
+                enabled: true
+```
+
+Example generated k0s.yaml (airgap mode):
+```yaml
+apiVersion: k0s.k0sproject.io/v1beta1
+kind: Cluster
+metadata:
+  name: k0s
+spec:
+  api:
+    address: "0.0.0.0"
+    port: 6443
+  network:
+    provider: "calico"
+    podCIDR: "10.244.0.0/16"
+    serviceCIDR: "10.96.0.0/12"
+  storage:
+    type: "etcd"
+    etcd:
+      peerAddress: "127.0.0.1"
+  images:
+    default_pull_policy: Never  # Prevent external image pulls
+  extensions:
+    helm:
+      charts:
+        - name: kcm
+          chartname: oci://localhost:5000/charts/k0rdent-enterprise
+          version: "1.2.2"
+          namespace: kcm-system
+          values: |
+            controller:
+              globalRegistry: localhost:5000
+              templatesRepoURL: oci://localhost:5000/charts
+            image:
+              repository: localhost:5000/kcm-controller
+            # ... additional image repository overrides for all components
+            regional:
+              telemetry:
+                mode: disabled
 ```
 
 ### 4. Installation Workflow
@@ -122,26 +215,45 @@ sequenceDiagram
     participant K0s
     participant K8sClient
     participant Helm
+    participant Credentials
 
     User->>CLI: k0rdentd install
     CLI->>Config: Read /etc/k0rdentd/k0rdentd.yaml
     Config-->>CLI: Configuration data
-    CLI->>CLI: Generate /etc/k0s/k0s.yaml
-    CLI->>K0s: Execute k0s install and k0s start
+
+    alt Airgap Mode
+        CLI->>CLI: Extract k0s binary from embedded assets
+        CLI->>CLI: Configure containerd registry mirror
+        CLI->>CLI: Generate airgap k0s.yaml (local registry)
+    else Online Mode
+        CLI->>K0s: Download k0s binary
+        CLI->>CLI: Generate k0s.yaml (remote registry)
+    end
+
+    CLI->>K0s: Execute k0s install controller --enable-worker
+    CLI->>K0s: Execute k0s start
     K0s->>K0s: Wait for k0s status to be OK
+
     CLI->>K0s: Retrieve kubeconfig via k0s kubeconfig admin
     K0s-->>CLI: Kubeconfig content
     CLI->>K8sClient: Create client from kubeconfig
     K8sClient-->>CLI: Kubernetes clientset
-    CLI->>K8sClient: Check namespace exists
-    K8sClient->>K0s: API call
+
     K0s->>Helm: Install k0rdent via helm extension
     Helm->>Helm: Wait for Helm install to be OK
+
     CLI->>K8sClient: Check deployments ready
     K8sClient->>K0s: API call
-    Helm-->>K0s: Installation complete
-    K0s-->>CLI: Installation complete
-    CLI-->>User: Success
+    K8sClient-->>CLI: Deployments ready
+
+    alt Credentials configured
+        CLI->>CLI: Wait for CAPI provider Helm releases
+        CLI->>Credentials: Create cloud provider credentials
+        Credentials->>K8sClient: Create Secrets, Identities, Credentials
+        Credentials-->>CLI: Done (with warnings on failure)
+    end
+
+    CLI-->>User: Installation complete
 ```
 
 ### 5. Error Handling and Validation
@@ -173,14 +285,22 @@ type Client struct {
 - A `client-go` clientset is created using `clientcmd.RESTConfigFromKubeConfig()`
 
 **Provided Operations:**
-- `NamespaceExists(name string) (bool, error)` - Check if a namespace exists
-- `GetDeploymentReadyReplicas(namespace, name string) (int32, error)` - Get deployment ready replica count
-- `GetDeploymentReplicas(namespace, name string) (int32, error)` - Get deployment total replica count
-- `GetPodPhases(namespace, labelSelector string) ([]corev1.PodPhase, error)` - Get pod phases by label selector
-- `PatchServiceType(namespace, name string, svcType corev1.ServiceType) error` - Patch service type
-- `GetServiceNodePort(namespace, name string) (int32, error)` - Get service NodePort
-- `ApplyIngress(ingress *networkingv1.Ingress) error` - Create or update an ingress
-- `GetDeploymentEnvVar(namespace, deployment, container, envVar string) (string, error)` - Extract env var from deployment
+- `NamespaceExists(ctx, name) (bool, error)` - Check if a namespace exists
+- `AreAllDeploymentsReady(ctx, namespace, deploymentNames) (bool, error)` - Check if all deployments are ready
+- `GetDeploymentEnvVar(ctx, namespace, deployment, container, envVar) (string, error)` - Extract env var from deployment
+- `PatchServiceType(ctx, namespace, name, svcType) error` - Patch service type
+- `GetServiceNodePort(ctx, namespace, name) (int32, error)` - Get service NodePort
+- `ApplyIngress(ctx, ingress) error` - Create or update an ingress
+- `CreateSecret(ctx, secret) error` - Create a Kubernetes Secret
+- `CreateAWSClusterStaticIdentity(ctx, name, secretRef, namespace) error` - Create AWS identity
+- `CreateAzureClusterIdentity(ctx, name, secretRef, namespace) error` - Create Azure identity
+- `CreateCredential(ctx, name, description, kind, nameRef, group, namespace) error` - Create k0rdent Credential
+- `AWSClusterStaticIdentityExists(ctx, name, namespace) (bool, error)` - Check if AWS identity exists
+- `AzureClusterIdentityExists(ctx, name, namespace) (bool, error)` - Check if Azure identity exists
+- `CredentialExists(ctx, name, namespace) (bool, error)` - Check if Credential exists
+- `SecretExists(ctx, name, namespace) (bool, error)` - Check if Secret exists
+- `IsHelmReleaseReady(ctx, namespace, releaseName) (bool, error)` - Check if Helm release is deployed
+- `GetHelmReleaseStatus(ctx, namespace, releaseName) (HelmReleaseStatus, error)` - Get Helm release status
 
 **Benefits:**
 - Type-safe API operations instead of jsonpath parsing
@@ -285,6 +405,118 @@ func (m *Manager) CreateAll(ctx context.Context, cfg config.CredentialsConfig) e
 - Credentials are created in the k0rdent namespace (kcm-system)
 - Identity objects use `allowedNamespaces` to control access
 
+### 6.3 Airgap Architecture (`internal/airgap`)
+
+The airgap feature enables k0rdentd to install k0s and k0rdent in environments without internet access. It uses two build flavors:
+
+**Build Flavors:**
+- **Online** (default): Standard build that downloads k0s and images from internet
+- **Airgap**: Larger build (~350MB) with embedded k0s and skopeo binaries
+
+**Embedded Binaries (Airgap Build Only):**
+- k0s binary (~100MB) - Embedded via `//go:embed k0s/*`
+- skopeo binary (~50MB) - For pushing images to local registry
+
+**What's External:**
+- k0rdent enterprise airgap bundle (22GB) - User downloads separately from Mirantis
+
+```mermaid
+graph TD
+    A[User] -->|k0rdentd install --airgap| B[Airgap Installer]
+    B --> C[Extract k0s binary to /usr/local/bin/k0s]
+    B --> D[Setup containerd mirror]
+    D --> D1[/etc/k0s/containerd.d/cri-registry.toml]
+    D --> D2[/etc/k0s/containerd.d/certs.d/*/hosts.toml]
+    B --> E[Generate airgap k0s.yaml]
+    E --> E1[default_pull_policy: Never]
+    E --> E2[globalRegistry: localhost:5000]
+    B --> F[Install k0s]
+    F --> G[k0s Helm Extension]
+    G --> H[Local OCI Registry localhost:5000]
+    H --> I[k0rdent-enterprise chart]
+    I --> J[K0rdent Deployed]
+
+    K[User] -->|k0rdentd registry| L[Registry Daemon]
+    L --> M[Extract embedded skopeo]
+    M --> N[Extract k0rdent bundle]
+    N --> O[Push images to registry]
+    O --> H
+```
+
+**Airgap Installation Steps:**
+
+1. **Extract k0s binary** - Copy embedded k0s binary to `/usr/local/bin/k0s`
+2. **Configure containerd mirror** - Set up `/etc/k0s/containerd.d/` configuration
+3. **Generate airgap k0s.yaml** - Configured for local registry with `default_pull_policy: Never`
+4. **Install k0s** - Run `k0s install controller --enable-worker` and `k0s start`
+5. **Deploy k0rdent** - Via k0s helm extension from local OCI registry
+
+**Registry Daemon:**
+
+The `k0rdentd registry` command runs a local OCI registry for airgap installations:
+
+```bash
+k0rdentd registry \
+  --bundle-path /opt/airgap-bundle-1.2.2.tar.gz \
+  --port 5000 \
+  --storage /var/lib/k0rdentd/registry
+```
+
+Features:
+- Extracts embedded skopeo binary for pushing images
+- Extracts k0rdent version from bundle
+- Pushes all bundle images to local registry using go-containerregistry
+- Runs on configurable port (default: 5000)
+- Disk-based storage for 22GB of images
+- Graceful shutdown handling
+
+**Containerd Mirror Configuration:**
+
+For airgap installations, containerd is configured to use the local registry as a mirror:
+
+```toml
+# /etc/k0s/containerd.d/cri-registry.toml
+version = 2
+[plugins."io.containerd.grpc.v1.cri".registry]
+config_path = "/etc/k0s/containerd.d/certs.d"
+```
+
+```toml
+# /etc/k0s/containerd.d/certs.d/registry.k8s.io/hosts.toml
+server = "https://registry.k8s.io"
+[host."http://127.0.0.1:5000"]
+  capabilities = ["pull", "resolve"]
+```
+
+```toml
+# /etc/k0s/containerd.d/certs.d/quay.io/hosts.toml
+server = "https://quay.io"
+[host."http://127.0.0.1:5000"]
+  capabilities = ["pull", "resolve"]
+```
+
+**Multi-Worker Support:**
+
+For multi-worker clusters, the registry address must be reachable from all nodes:
+
+```yaml
+airgap:
+  registry:
+    address: "192.168.1.10:5000"  # Use reachable IP instead of localhost
+```
+
+The `export-worker-artifacts` command creates a worker bundle containing the k0s binary for joining worker nodes.
+
+### 6.4 K0s Binary Management (`pkg/k0s`)
+
+The `k0s` package manages k0s binary installation and checking:
+
+**Key Functions:**
+- `CheckK0s() error` - Check if k0s binary exists in PATH
+- `InstallK0s(version string) error` - Download and install k0s binary to `/usr/local/bin/k0s`
+
+In airgap mode, k0s is extracted from embedded assets instead of being downloaded.
+
 ### 6. Testing Strategy
 
 #### Unit Tests (ginkgo/gomega)
@@ -308,6 +540,11 @@ func (m *Manager) CreateAll(ctx context.Context, cfg config.CredentialsConfig) e
 │       └── main.go          # CLI entry point
 ├── pkg/
 │   ├── cli/                # CLI command implementations
+│   │   ├── install.go      # Install command
+│   │   ├── uninstall.go    # Uninstall command
+│   │   ├── registry.go     # Registry daemon command
+│   │   ├── expose_ui.go    # UI exposure command
+│   │   └── export.go       # Worker artifacts export
 │   ├── config/             # Configuration management
 │   ├── generator/          # K0s config generation
 │   ├── installer/          # Installation logic
@@ -315,14 +552,28 @@ func (m *Manager) CreateAll(ctx context.Context, cfg config.CredentialsConfig) e
 │   ├── k8sclient/          # Kubernetes client-go wrapper
 │   │   ├── client.go       # Core client functionality
 │   │   └── k0s.go          # K0s-specific kubeconfig retrieval
-│   ├── k0s/                # K0s binary management
+│   ├── k0s/                # K0s binary management and checking
 │   ├── ui/                 # UI exposure functionality
-│   └── utils/              # Utility functions
+│   └── utils/              # Utility functions (including spinner)
 ├── internal/
+│   ├── airgap/             # Airgap functionality
+│   │   ├── assets/         # Embedded binaries (k0s, skopeo)
+│   │   │   ├── assets.go   # Embed directives for airgap builds
+│   │   │   └── stub.go     # Empty stub for online builds
+│   │   ├── bundle/         # Bundle version extraction
+│   │   ├── containerd/     # Containerd mirror configuration
+│   │   │   └── config.go   # SetupContainerdMirror()
+│   │   ├── detector.go     # Build flavor detection
+│   │   ├── exporter.go     # Worker artifact export
+│   │   ├── installer.go    # Airgap installation logic
+│   │   └── registry/       # OCI registry daemon
+│   │       ├── daemon.go   # Registry daemon implementation
+│   │       └── pusher.go   # Image push to registry
 │   └── test/               # Test utilities
 ├── scripts/                # Build and deployment scripts
 ├── docs/                   # Documentation
 ├── examples/               # Example configurations
+├── AGENT_DOCS/             # Agent documentation and implementation plans
 ├── go.mod                  # Go module definition
 ├── go.sum                  # Go dependencies
 ├── Makefile                # Build automation
@@ -337,16 +588,19 @@ func (m *Manager) CreateAll(ctx context.Context, cfg config.CredentialsConfig) e
 4. **Logging**: Sensitive information will not be logged
 5. **Dependencies**: Regular dependency updates and vulnerability scanning
 
-## Implementation Phases
+## Implementation Status
 
-1. **Phase 1**: CLI skeleton and configuration parsing
-2. **Phase 2**: K0s configuration generation
-3. **Phase 3**: Installation workflow
-4. **Phase 4**: Testing and validation
-5. **Phase 5**: Documentation and examples
+| Phase | Status | Description |
+|-------|--------|-------------|
+| Phase 1 | ✅ Complete | CLI skeleton and configuration parsing |
+| Phase 2 | ✅ Complete | K0s configuration generation (online and airgap) |
+| Phase 3 | ✅ Complete | Installation workflow with credentials support |
+| Phase 4 | ✅ Complete | Airgap feature with registry daemon |
+| Phase 5 | 🚧 In Progress | Testing and validation |
+| Phase 6 | ⏳ Pending | Documentation and examples |
 
 ## Open Questions
 
-1. Should we support multiple k0rdent versions or only the latest?
-3. Should we include health checks and status reporting?
-4. What about upgrade scenarios from previous versions?
+1. ~~Should we support multiple k0rdent versions or only the latest?~~ → Resolved: Version extracted from bundle
+2. ~~Should we include health checks and status reporting?~~ → Resolved: `areK0rdentDeploymentsReady()` checks deployments
+3. What about upgrade scenarios from previous versions? → **OPEN**
