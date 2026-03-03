@@ -1,8 +1,11 @@
-package ui
+package network
 
 import (
+	"fmt"
 	"net"
 	"strings"
+
+	"github.com/belgaied2/k0rdentd/pkg/utils"
 )
 
 // interfaceFilter is a function that returns true if an interface should be ignored
@@ -29,10 +32,20 @@ func commonIgnoredInterfaces() []interfaceFilter {
 		func(name string) bool {
 			return strings.HasPrefix(name, "wg") // wireguard
 		},
+		func(name string) bool {
+			return strings.HasPrefix(name, "veth") // virtual ethernet
+		},
+		func(name string) bool {
+			return strings.HasPrefix(name, "br-") // docker bridges
+		},
+		func(name string) bool {
+			return strings.HasPrefix(name, "cni") // CNI interfaces
+		},
+		func(name string) bool {
+			return strings.HasPrefix(name, "flannel") // flannel
+		},
 	}
 }
-
-// sum is func that calculates the sum of two integers
 
 // shouldIgnoreInterface checks if an interface should be ignored based on common patterns
 func shouldIgnoreInterface(name string) bool {
@@ -93,4 +106,54 @@ func GetLocalIPs() ([]net.IP, error) {
 	}
 
 	return ips, nil
+}
+
+// GetInternalIP returns the first internal IP address (for join config)
+// This is the IP address that other nodes can use to connect to this node
+func GetInternalIP() (string, error) {
+	ips, err := GetLocalIPs()
+	if err != nil {
+		return "", fmt.Errorf("failed to get local IPs: %w", err)
+	}
+
+	if len(ips) == 0 {
+		return "", fmt.Errorf("no internal IP addresses found")
+	}
+
+	// Return the first IP (usually the primary interface)
+	return ips[0].String(), nil
+}
+
+// GetInternalIPWithOverride returns the override IP if provided, otherwise auto-detects
+func GetInternalIPWithOverride(override string) (string, error) {
+	if override != "" {
+		// Validate the override IP
+		ip := net.ParseIP(override)
+		if ip == nil {
+			return "", fmt.Errorf("invalid IP address: %s", override)
+		}
+		return override, nil
+	}
+
+	return GetInternalIP()
+}
+
+// GetControllerIP is an alias for GetInternalIPWithOverride for clarity
+func GetControllerIP(override string) (string, error) {
+	return GetInternalIPWithOverride(override)
+}
+
+// LogDetectedIPs logs all detected IP addresses for debugging
+func LogDetectedIPs() {
+	logger := utils.GetLogger()
+	ips, err := GetLocalIPs()
+	if err != nil {
+		logger.Warnf("Failed to get local IPs: %v", err)
+		return
+	}
+
+	logger.Debugf("Detected %d IP addresses:", len(ips))
+	for i, ip := range ips {
+		logger.Debugf("  [%d] %s", i+1, ip.String())
+	}
 }

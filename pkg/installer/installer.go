@@ -132,6 +132,171 @@ func (i *Installer) Install(k0sConfig []byte, k0rdentConfig *config.K0rdentConfi
 	return nil
 }
 
+// InstallJoin installs K0s as a joining node (controller or worker)
+func (i *Installer) InstallJoin(joinConfig *config.JoinConfig) error {
+	logger := utils.GetLogger()
+
+	if joinConfig == nil || !joinConfig.IsJoin() {
+		return fmt.Errorf("invalid join configuration")
+	}
+
+	if !joinConfig.IsValid() {
+		return fmt.Errorf("join configuration is incomplete or invalid")
+	}
+
+	logger.Infof("Joining cluster as %s node...", joinConfig.Mode)
+	logger.Infof("Controller server: %s", joinConfig.Server)
+
+	if i.dryRun {
+		logger.Info("📝 Dry run mode - join installation steps:")
+		logger.Infof("1. Configure containerd mirrors (if airgap)")
+		logger.Infof("2. Write K0s configuration")
+		logger.Infof("3. Execute: k0s install %s --token-file <token>", joinConfig.Mode)
+		logger.Infof("4. Start K0s service")
+		logger.Infof("5. Wait for node to be ready")
+		return nil
+	}
+
+	// Configure containerd mirrors for airgap mode only
+	if airgap.IsAirGap() && i.config != nil && i.config.Airgap.Registry.Address != "" {
+		logger.Info("Configuring containerd registry mirrors...")
+		if err := i.configureContainerdMirrors(i.config.Airgap.Registry.Address); err != nil {
+			return fmt.Errorf("failed to configure containerd mirrors: %w", err)
+		}
+	}
+
+	// Write k0s config for join mode
+	if err := i.writeK0sJoinConfig(); err != nil {
+		return fmt.Errorf("failed to write k0s config: %w", err)
+	}
+
+	// Create token file
+	tokenFile := "/etc/k0s/join-token"
+	if err := os.WriteFile(tokenFile, []byte(joinConfig.Token), 0600); err != nil {
+		return fmt.Errorf("failed to write token file: %w", err)
+	}
+	defer os.Remove(tokenFile) // Clean up token file after installation
+
+	// Install k0s in join mode
+	// Note: k0s token includes server information, no --server flag needed
+	var stderrBuf bytes.Buffer
+	installArgs := []string{
+		"install", joinConfig.Mode,
+		"--token-file", tokenFile,
+	}
+
+	cmd := exec.Command("k0s", installArgs...)
+	cmd.Stderr = &stderrBuf
+
+	if i.debug {
+		logger.Debugf("🔧 Executing: k0s %v", installArgs)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
+	}
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("k0s install failed: %w. stderr: %s", err, stderrBuf.String())
+	}
+
+	// Start k0s service
+	startCmd := exec.Command("k0s", "start")
+	var startStderrBuf bytes.Buffer
+	startCmd.Stderr = &startStderrBuf
+
+	if i.debug {
+		logger.Debug("🔧 Executing: k0s start")
+		startCmd.Stdout = os.Stdout
+		startCmd.Stderr = io.MultiWriter(os.Stderr, &startStderrBuf)
+	}
+
+	if err := startCmd.Run(); err != nil {
+		return fmt.Errorf("k0s start failed: %w. stderr: %s", err, startStderrBuf.String())
+	}
+
+	// Wait for k0s to be ready
+	if err := i.waitForK0sReady(); err != nil {
+		return fmt.Errorf("k0s did not become ready: %w", err)
+	}
+
+	logger.Infof("✅ Successfully joined cluster as %s", joinConfig.Mode)
+	return nil
+}
+
+// writeK0sJoinConfig writes a minimal k0s configuration for join mode
+func (i *Installer) writeK0sJoinConfig() error {
+	configPath := "/etc/k0s/k0s.yaml"
+
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+		return fmt.Errorf("failed to create config directory: %w", err)
+	}
+
+	// Minimal k0s config for join mode
+	// k0s will get most config from the controller via the join token
+	minimalConfig := `apiVersion: k0s.k0sproject.io/v1beta1
+kind: ClusterConfig
+metadata:
+  name: k0s
+spec:
+  # Configuration will be merged with controller settings
+`
+
+	if err := os.WriteFile(configPath, []byte(minimalConfig), 0600); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	if i.debug {
+		utils.GetLogger().Debugf("📄 Wrote K0s join configuration to %s", configPath)
+	}
+
+	return nil
+}
+
+// configureContainerdMirrors configures containerd to use the specified registry as a mirror
+func (i *Installer) configureContainerdMirrors(registryAddress string) error {
+	logger := utils.GetLogger()
+
+	// Create containerd config directory
+	certsDir := "/etc/k0s/containerd.d/certs.d"
+	if err := os.MkdirAll(certsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create containerd certs directory: %w", err)
+	}
+
+	// List of registries to mirror
+	registries := []string{
+		"registry.k8s.io",
+		"quay.io",
+		"ghcr.io",
+		"gcr.io",
+		"docker.io",
+	}
+
+	// Configure mirror for each registry
+	for _, registry := range registries {
+		registryDir := filepath.Join(certsDir, registry)
+		if err := os.MkdirAll(registryDir, 0755); err != nil {
+			return fmt.Errorf("failed to create registry directory for %s: %w", registry, err)
+		}
+
+		hostsFile := filepath.Join(registryDir, "hosts.toml")
+		content := fmt.Sprintf(`server = "https://%s"
+
+[host."http://%s"]
+  capabilities = ["pull", "resolve"]
+  skip_verify = true
+`, registry, registryAddress)
+
+		if err := os.WriteFile(hostsFile, []byte(content), 0644); err != nil {
+			return fmt.Errorf("failed to write hosts.toml for %s: %w", registry, err)
+		}
+
+		logger.Debugf("Configured mirror for %s -> %s", registry, registryAddress)
+	}
+
+	logger.Infof("✅ Configured containerd mirrors for %d registries", len(registries))
+	return nil
+}
+
 // installAirgap performs air-gapped installation
 func (i *Installer) installAirgap(k0rdentConfig *config.K0rdentConfig) error {
 	logger := utils.GetLogger()

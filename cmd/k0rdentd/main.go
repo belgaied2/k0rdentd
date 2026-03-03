@@ -22,6 +22,7 @@ func main() {
 			cli.ConfigCommand,
 			cli.ExposeUICommand,
 			cli.ExportWorkerArtifactsCommand,
+			cli.ExportJoinConfigCommand,
 			cli.ShowFlavorCommand,
 		},
 		Flags: []urfavecli.Flag{

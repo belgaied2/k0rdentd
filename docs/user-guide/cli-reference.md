@@ -28,21 +28,30 @@ k0rdentd install [flags]
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--config-file, -c` | `/etc/k0rdentd/k0rdentd.yaml` | Path to configuration file |
-| `--airgap` | `false` | Force airgap mode installation |
+| `--k0s-version, -k` | - | Override K0s version from config |
+| `--k0rdent-version, -r` | - | Override K0rdent version from config |
+| `--join` | `false` | Join an existing cluster (requires --mode) |
+| `--mode` | - | Node mode: controller or worker (required if --join is set) |
 | `--debug` | `false` | Enable debug logging |
 | `--dry-run` | `false` | Show what would be done |
 
 ### Examples
 
 ```bash
-# Basic installation
+# Basic installation (first controller, implicit cluster-init)
 sudo k0rdentd install
 
 # With custom config file
 sudo k0rdentd install -c /path/to/config.yaml
 
-# Airgap installation
-sudo k0rdentd install --airgap
+# Join as additional controller
+sudo k0rdentd install --join --mode=controller
+
+# Join as worker node
+sudo k0rdentd install --join --mode=worker
+
+# Join using config file (join section in k0rdentd.yaml)
+sudo k0rdentd install
 
 # Debug mode
 sudo k0rdentd install --debug
@@ -53,6 +62,7 @@ sudo k0rdentd install --dry-run
 
 ### What It Does
 
+**First Controller (cluster-init):**
 1. Checks if K0s binary exists, installs if missing
 2. Generates K0s configuration from k0rdentd.yaml
 3. Installs K0s controller with worker enabled
@@ -61,6 +71,14 @@ sudo k0rdentd install --dry-run
 6. Waits for K0rdent Helm chart to be installed
 7. Creates cloud provider credentials (if configured)
 8. Exposes K0rdent UI
+
+**Joining Node (controller or worker):**
+1. Reads join configuration from k0rdentd.yaml or CLI flags
+2. Configures containerd mirrors for airgap (if applicable)
+3. Writes K0s join configuration
+4. Installs K0s with join token
+5. Starts K0s service
+6. Waits for node to be ready
 
 ### Exit Codes
 
@@ -286,6 +304,102 @@ k0rdentd export-worker-artifacts -b /path/to/bundle.tar.gz
 2. Creates bundle reference file
 3. Generates helper scripts
 4. Creates README with instructions
+
+---
+
+## export-join-config
+
+Export join configurations for additional nodes in multi-node deployments.
+
+### Usage
+
+```bash
+k0rdentd export-join-config [flags]
+```
+
+### Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--output, -o` | `./join-configs` | Output directory for join config files |
+| `--controller-ip` | (auto-detected) | Override auto-detected controller IP address |
+| `--expiry, -e` | `24h` | Token expiry time (e.g., 24h, 168h for 7 days) |
+| `--registry-port` | `5000` | Registry port for airgap mode |
+| `--overwrite, -f` | `false` | Overwrite existing files |
+| `--debug` | `false` | Enable debug logging |
+
+### Examples
+
+```bash
+# Export join configs with defaults
+sudo k0rdentd export-join-config
+
+# Custom output directory
+sudo k0rdentd export-join-config -o /path/to/configs
+
+# Override controller IP (useful if auto-detection fails)
+sudo k0rdentd export-join-config --controller-ip 192.168.1.100
+
+# Longer token expiry (7 days)
+sudo k0rdentd export-join-config --expiry 168h
+
+# Overwrite existing files
+sudo k0rdentd export-join-config --overwrite
+```
+
+### What It Does
+
+1. Loads current k0rdentd configuration
+2. Auto-detects controller IP address
+3. Creates controller join token via `k0s token create --role=controller`
+4. Creates worker join token via `k0s token create --role=worker`
+5. Generates `controller-join.yaml` with join config for additional controllers
+6. Generates `worker-join.yaml` with join config for worker nodes
+7. Includes airgap registry settings if applicable
+
+### Output Files
+
+The command creates two files in the output directory:
+
+**controller-join.yaml** - For joining additional controller nodes:
+```yaml
+join:
+  mode: controller
+  server: 192.168.1.10
+  token: "k0s-controller-token..."
+
+k0s:
+  version: "v1.32.4+k0s.0"
+
+# Airgap settings (if applicable)
+airgap:
+  registry:
+    address: 192.168.1.10:5000
+    insecure: true
+```
+
+**worker-join.yaml** - For joining worker nodes:
+```yaml
+join:
+  mode: worker
+  server: 192.168.1.10
+  token: "k0s-worker-token..."
+
+k0s:
+  version: "v1.32.4+k0s.0"
+```
+
+### Usage After Export
+
+```bash
+# On additional controller node
+scp controller-join.yaml user@controller2:/etc/k0rdentd/k0rdentd.yaml
+sudo k0rdentd install
+
+# On worker node
+scp worker-join.yaml user@worker1:/etc/k0rdentd/k0rdentd.yaml
+sudo k0rdentd install
+```
 
 ---
 

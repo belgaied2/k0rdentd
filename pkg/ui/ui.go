@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/belgaied2/k0rdentd/pkg/k8sclient"
+	"github.com/belgaied2/k0rdentd/pkg/network"
 	"github.com/belgaied2/k0rdentd/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -223,7 +224,7 @@ func ExposeUI() error {
 	}
 
 	// Get external/public IPs
-	localIPs, err := GetLocalIPs()
+	localIPs, err := network.GetLocalIPs()
 	if err != nil {
 		utils.GetLogger().Warnf("Failed to get external IPs: %v", err)
 	} else {

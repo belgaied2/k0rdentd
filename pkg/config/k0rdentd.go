@@ -12,8 +12,41 @@ type K0rdentdConfig struct {
 	K0s      K0sConfig     `yaml:"k0s"`
 	K0rdent  K0rdentConfig `yaml:"k0rdent"`
 	Airgap   AirgapConfig  `yaml:"airgap,omitempty"`
+	Join     JoinConfig    `yaml:"join,omitempty"`
 	Debug    bool          `yaml:"debug,omitempty"`
 	LogLevel string        `yaml:"logLevel,omitempty"`
+}
+
+// JoinConfig represents configuration for joining an existing cluster
+type JoinConfig struct {
+	// Mode is the node mode: controller or worker
+	Mode string `yaml:"mode"`
+	// Server is the IP address of the first controller node
+	Server string `yaml:"server"`
+	// Token is the join token from k0s token create
+	Token string `yaml:"token"`
+}
+
+// IsJoin returns true if this config is for joining a cluster
+func (j JoinConfig) IsJoin() bool {
+	return j.Mode != "" && j.Server != "" && j.Token != ""
+}
+
+// IsValid returns true if the join config is valid
+func (j JoinConfig) IsValid() bool {
+	if j.Mode == "" {
+		return false
+	}
+	if j.Mode != "controller" && j.Mode != "worker" {
+		return false
+	}
+	if j.Server == "" {
+		return false
+	}
+	if j.Token == "" {
+		return false
+	}
+	return true
 }
 
 // K0sConfig represents K0s-specific configuration

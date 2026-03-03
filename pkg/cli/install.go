@@ -30,10 +30,20 @@ var InstallCommand = &cli.Command{
 			Aliases: []string{"r"},
 			Usage:   "Override K0rdent version from config",
 		},
+		&cli.BoolFlag{
+			Name:  "join",
+			Usage: "Join an existing cluster (requires --mode)",
+		},
+		&cli.StringFlag{
+			Name:  "mode",
+			Usage: "Node mode: controller or worker (required if --join is set)",
+		},
 	},
 }
 
 func installAction(c *cli.Context) error {
+	logger := utils.GetLogger()
+
 	// Load configuration with fallback logic
 	cfg, err := config.LoadConfigWithFallback(
 		c.String("config-file"),
@@ -52,44 +62,74 @@ func installAction(c *cli.Context) error {
 		cfg.K0rdent.Version = c.String("k0rdent-version")
 	}
 
+	// Determine if we're joining a cluster
+	// Priority: CLI flags > config file
+	joinMode := ""
+	if c.IsSet("join") || c.IsSet("mode") {
+		// CLI flags provided
+		if c.IsSet("join") && !c.IsSet("mode") {
+			return fmt.Errorf("--mode is required when --join is specified")
+		}
+		if c.IsSet("mode") && !c.IsSet("join") && !cfg.Join.IsJoin() {
+			return fmt.Errorf("--join is required when --mode is specified without join config in file")
+		}
+		joinMode = c.String("mode")
+	} else if cfg.Join.IsJoin() {
+		// Join config from file
+		joinMode = cfg.Join.Mode
+		logger.Infof("Using join configuration from file (mode: %s)", joinMode)
+	}
+
+	// Validate join mode
+	if joinMode != "" && joinMode != "controller" && joinMode != "worker" {
+		return fmt.Errorf("invalid mode '%s': must be 'controller' or 'worker'", joinMode)
+	}
+
 	// Check if k0s binary exists
 	k0sCheck, err := k0s.CheckK0s()
 	if err != nil {
 		return fmt.Errorf("failed to check k0s: %w", err)
 	}
 
-	// If k0s is not installed, install it
+	// If k0s is not installed, install it (for both init and join modes)
+	// In airgap mode, k0s binary should already be extracted from embedded assets
 	if !airgap.IsAirGap() && !k0sCheck.Installed {
-		utils.GetLogger().Info("k0s binary not found, installing...")
+		logger.Info("k0s binary not found, installing...")
 		if err := k0s.InstallK0s(); err != nil {
 			return fmt.Errorf("failed to install k0s: %w", err)
 		}
 	}
 
-	// Generate K0s configuration
-	k0sConfig, err := generator.GenerateK0sConfig(cfg)
-	if err != nil {
-		return fmt.Errorf("failed to generate K0s config: %w", err)
-	}
-
-	// Install K0s and K0rdent
-	installer := installer.NewInstaller(
+	// Create installer
+	inst := installer.NewInstaller(
 		c.Bool("debug"),
 		c.Bool("dry-run"),
 	)
+	inst.SetConfig(cfg)
 
-	// Set full config for airgap support
-	installer.SetConfig(cfg)
+	// Execute installation based on mode
+	if joinMode != "" {
+		// Join existing cluster
+		if err := inst.InstallJoin(&cfg.Join); err != nil {
+			return fmt.Errorf("join installation failed: %w", err)
+		}
+		logger.Info("✅ Successfully joined the cluster!")
+	} else {
+		// Initialize new cluster (cluster-init is implicit)
+		k0sConfig, err := generator.GenerateK0sConfig(cfg)
+		if err != nil {
+			return fmt.Errorf("failed to generate K0s config: %w", err)
+		}
 
-	if err := installer.Install(k0sConfig, &cfg.K0rdent); err != nil {
-		return fmt.Errorf("installation failed: %w", err)
-	}
+		if err := inst.Install(k0sConfig, &cfg.K0rdent); err != nil {
+			return fmt.Errorf("installation failed: %w", err)
+		}
+		logger.Info("✅ K0s and K0rdent installed successfully!")
 
-	utils.GetLogger().Info("✅ K0s and K0rdent installed successfully!")
-
-	// Expose k0rdent UI
-	if err := ui.ExposeUI(); err != nil {
-		utils.GetLogger().Warnf("Failed to expose k0rdent UI: %v", err)
+		// Expose k0rdent UI (only for controller init mode)
+		if err := ui.ExposeUI(); err != nil {
+			logger.Warnf("Failed to expose k0rdent UI: %v", err)
+		}
 	}
 
 	return nil

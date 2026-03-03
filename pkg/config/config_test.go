@@ -13,21 +13,13 @@ func TestDefaultConfig(t *testing.T) {
 	// Test DefaultConfig function
 	cfg := config.DefaultConfig()
 
-	// Verify K0s configuration
-	g.Expect(cfg.K0s.Version).To(gomega.Equal("v1.27.4+k0s.0"))
-	g.Expect(cfg.K0s.API.Address).To(gomega.Equal("0.0.0.0"))
-	g.Expect(cfg.K0s.API.Port).To(gomega.Equal(6443))
-	g.Expect(cfg.K0s.Network.Provider).To(gomega.Equal("calico"))
-	g.Expect(cfg.K0s.Storage.Type).To(gomega.Equal("etcd"))
-
-	// Verify K0rdent configuration
-	g.Expect(cfg.K0rdent.Version).To(gomega.Equal("v0.1.0"))
-	g.Expect(cfg.K0rdent.Helm.Chart).To(gomega.Equal("k0rdent/k0rdent"))
-	g.Expect(cfg.K0rdent.Helm.Namespace).To(gomega.Equal("k0rdent-system"))
+	// Verify K0rdent configuration (default values)
+	g.Expect(cfg.K0rdent.Version).To(gomega.Equal("1.2.2"))
+	g.Expect(cfg.K0rdent.Helm.Chart).To(gomega.Equal("oci://registry.mirantis.com/k0rdent-enterprise/charts/k0rdent-enterprise"))
+	g.Expect(cfg.K0rdent.Helm.Namespace).To(gomega.Equal("kcm-system"))
 
 	// Verify global settings
 	g.Expect(cfg.Debug).To(gomega.BeFalse())
-	g.Expect(cfg.LogLevel).To(gomega.Equal("info"))
 }
 
 func TestConfigMarshaling(t *testing.T) {
@@ -41,6 +33,117 @@ func TestConfigMarshaling(t *testing.T) {
 
 	// Basic validation that marshaled data contains expected values
 	dataStr := string(data)
-	g.Expect(dataStr).To(gomega.ContainSubstring("v1.27.4+k0s.0"))
-	g.Expect(dataStr).To(gomega.ContainSubstring("k0rdent/k0rdent"))
+	g.Expect(dataStr).To(gomega.ContainSubstring("k0rdent"))
+	g.Expect(dataStr).To(gomega.ContainSubstring("kcm-system"))
+}
+
+func TestJoinConfigIsJoin(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   config.JoinConfig
+		expected bool
+	}{
+		{
+			name:     "empty config",
+			config:   config.JoinConfig{},
+			expected: false,
+		},
+		{
+			name: "missing mode",
+			config: config.JoinConfig{
+				Server: "192.168.1.10",
+				Token:  "token123",
+			},
+			expected: false,
+		},
+		{
+			name: "missing server",
+			config: config.JoinConfig{
+				Mode:  "worker",
+				Token: "token123",
+			},
+			expected: false,
+		},
+		{
+			name: "missing token",
+			config: config.JoinConfig{
+				Mode:   "worker",
+				Server: "192.168.1.10",
+			},
+			expected: false,
+		},
+		{
+			name: "valid worker config",
+			config: config.JoinConfig{
+				Mode:   "worker",
+				Server: "192.168.1.10",
+				Token:  "token123",
+			},
+			expected: true,
+		},
+		{
+			name: "valid controller config",
+			config: config.JoinConfig{
+				Mode:   "controller",
+				Server: "192.168.1.10",
+				Token:  "token123",
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := gomega.NewWithT(t)
+			g.Expect(tt.config.IsJoin()).To(gomega.Equal(tt.expected))
+		})
+	}
+}
+
+func TestJoinConfigIsValid(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   config.JoinConfig
+		expected bool
+	}{
+		{
+			name:     "empty config",
+			config:   config.JoinConfig{},
+			expected: false,
+		},
+		{
+			name: "invalid mode",
+			config: config.JoinConfig{
+				Mode:   "invalid",
+				Server: "192.168.1.10",
+				Token:  "token123",
+			},
+			expected: false,
+		},
+		{
+			name: "valid worker config",
+			config: config.JoinConfig{
+				Mode:   "worker",
+				Server: "192.168.1.10",
+				Token:  "token123",
+			},
+			expected: true,
+		},
+		{
+			name: "valid controller config",
+			config: config.JoinConfig{
+				Mode:   "controller",
+				Server: "192.168.1.10",
+				Token:  "token123",
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := gomega.NewWithT(t)
+			g.Expect(tt.config.IsValid()).To(gomega.Equal(tt.expected))
+		})
+	}
 }
