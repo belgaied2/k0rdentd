@@ -4,76 +4,143 @@ import (
 	"testing"
 
 	"github.com/onsi/gomega"
+	networkingv1 "k8s.io/api/networking/v1"
 )
-
-func TestShouldIgnoreInterface(t *testing.T) {
-	g := gomega.NewWithT(t)
-
-	tests := []struct {
-		name     string
-		expected bool
-	}{
-		{"cali123", true},
-		{"cali0", true},
-		{"califl", true},
-		{"vxlan.calico", true},
-		{"vxlan.calico0", true},
-		{"tunl0", true},
-		{"tunl123", true},
-		{"wg0", true},
-		{"eth0", false},
-		{"enp0s0", false},
-		{"lo", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := shouldIgnoreInterface(tt.name)
-			g.Expect(result).To(gomega.Equal(tt.expected))
-		})
-	}
-}
 
 func TestCloudProviderConstants(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	t.Run("cloud provider constants", func(t *testing.T) {
-		g.Expect(CloudProviderAWS).To(gomega.Equal("aws"))
-		g.Expect(CloudProviderGCP).To(gomega.Equal("gcp"))
-		g.Expect(CloudProviderAzure).To(gomega.Equal("azure"))
-		g.Expect(CloudProviderNone).To(gomega.Equal("none"))
-	})
+		g.Expect(string(CloudProviderAWS)).To(gomega.Equal("aws"))
+		g.Expect(string(CloudProviderGCP)).To(gomega.Equal("gcp"))
+        g.Expect(string(CloudProviderAzure)).To(gomega.Equal("azure"))
+        g.Expect(string(CloudProviderNone)).To(gomega.Equal("none"))
+    })
 }
 
 func TestK0rdentUIConstants(t *testing.T) {
-	g := gomega.NewWithT(t)
+    g := gomega.NewWithT(t)
 
-	t.Run("k0rdent UI constants", func(t *testing.T) {
-		g.Expect(k0rdentUIDeploymentName).To(gomega.Equal("k0rdent-k0rdent-ui"))
-		g.Expect(k0rdentUIServiceName).To(gomega.Equal("k0rdent-k0rdent-ui"))
-		g.Expect(k0rdentUINamespace).To(gomega.Equal("kcm-system"))
-		g.Expect(k0rdentUIIngressName).To(gomega.Equal("k0rdent-ui"))
-		g.Expect(k0rdentUIIngressPath).To(gomega.Equal("/k0rdent-ui"))
-	})
+    t.Run("k0rdent UI constants", func(t *testing.T) {
+        g.Expect(k0rdentUIDeploymentName).To(gomega.Equal("kcm-k0rdent-ui"))
+        g.Expect(k0rdentUIServiceName).To(gomega.Equal("kcm-k0rdent-ui"))
+        g.Expect(k0rdentUINamespace).To(gomega.Equal("kcm-system"))
+        g.Expect(k0rdentUIIngressName).To(gomega.Equal("k0rdent-ui"))
+        g.Expect(k0rdentUIIngressPath).To(gomega.Equal("/k0rdent-ui"))
+    })
 }
 
-// TestGetBasicAuthPassword tests the GetBasicAuthPassword function
-func TestGetBasicAuthPassword(t *testing.T) {
-	g := gomega.NewWithT(t)
+func TestRemoveDuplicateIPs(t *testing.T) {
+    g := gomega.NewWithT(t)
 
-	t.Run("GetBasicAuthPassword function", func(t *testing.T) {
-		// This test verifies that the function can be called without panicking
-		// In a real environment with a k0s cluster, this would return the actual password
-		password, err := GetBasicAuthPassword()
+    tests := []struct {
+        name     string
+        input    []string
+        expected []string
+    }{
+        {
+            name:     "single IP",
+            input:    []string{"192.168.1.1"},
+            expected: []string{"192.168.1.1"},
+        },
+        {
+            name:     "no duplicates",
+            input:    []string{"192.168.1.1", "10.0.0.1", "172.16.0.1"},
+            expected: []string{"192.168.1.1", "10.0.0.1", "172.16.0.1"},
+        },
+        {
+            name:     "all duplicates",
+            input:    []string{"192.168.1.1", "192.168.1.1", "192.168.1.1"},
+            expected: []string{"192.168.1.1"},
+        },
+        {
+            name:     "some duplicates",
+            input:    []string{"192.168.1.1", "10.0.0.1", "192.168.1.1", "172.16.0.1", "10.0.0.1"},
+            expected: []string{"192.168.1.1", "10.0.0.1", "172.16.0.1"},
+        },
+    }
 
-		// We expect this to fail in a test environment without a real cluster
-		// but we want to ensure proper error handling
-		if err != nil {
-			// This is expected in a test environment without a real k0s cluster
-			g.Expect(err.Error()).To(gomega.ContainSubstring("failed to get Basic Auth password"))
-		} else {
-			// If we somehow get a password, it should not be empty
-			g.Expect(password).ToNot(gomega.BeEmpty())
-		}
-	})
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            result := removeDuplicateIPs(tt.input)
+            g.Expect(result).To(gomega.Equal(tt.expected))
+        })
+    }
+
+    t.Run("empty slice returns nil or empty", func(t *testing.T) {
+        result := removeDuplicateIPs([]string{})
+        // Function returns nil for empty input
+        g.Expect(result).To(gomega.BeNil())
+    })
+}
+
+func TestBuildIngressObject(t *testing.T) {
+    g := gomega.NewWithT(t)
+
+    tests := []struct {
+        name        string
+        ips         []string
+        expectName  string
+        expectNS    string
+        expectPath  string
+        expectRules int
+    }{
+        {
+            name:        "single IP",
+            ips:         []string{"192.168.1.1"},
+            expectName:  "k0rdent-ui",
+            expectNS:    "kcm-system",
+            expectPath:  "/k0rdent-ui",
+            expectRules: 1,
+        },
+        {
+            name:        "multiple IPs",
+            ips:         []string{"192.168.1.1", "10.0.0.1", "172.16.0.1"},
+            expectName:  "k0rdent-ui",
+            expectNS:    "kcm-system",
+            expectPath:  "/k0rdent-ui",
+            expectRules: 1,
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            result := buildIngressObject(tt.ips)
+
+            g.Expect(result).ToNot(gomega.BeNil())
+            g.Expect(result.Name).To(gomega.Equal(tt.expectName))
+            g.Expect(result.Namespace).To(gomega.Equal(tt.expectNS))
+            g.Expect(result.Spec.IngressClassName).ToNot(gomega.BeNil())
+            g.Expect(*result.Spec.IngressClassName).To(gomega.Equal("nginx"))
+            g.Expect(result.Spec.Rules).To(gomega.HaveLen(tt.expectRules))
+            g.Expect(result.Spec.Rules[0].HTTP.Paths[0].Path).To(gomega.Equal(tt.expectPath))
+            g.Expect(result.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name).To(gomega.Equal("kcm-k0rdent-ui"))
+            g.Expect(result.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number).To(gomega.Equal(int32(80)))
+
+            // Check annotation
+            g.Expect(result.Annotations).ToNot(gomega.BeNil())
+            g.Expect(result.Annotations["nginx.ingress.kubernetes.io/rewrite-target"]).To(gomega.Equal("/"))
+        })
+    }
+}
+
+func TestBuildIngressObject_PathType(t *testing.T) {
+    g := gomega.NewWithT(t)
+
+    result := buildIngressObject([]string{"192.168.1.1"})
+    g.Expect(result.Spec.Rules[0].HTTP.Paths[0].PathType).ToNot(gomega.BeNil())
+    g.Expect(*result.Spec.Rules[0].HTTP.Paths[0].PathType).To(gomega.Equal(networkingv1.PathTypePrefix))
+}
+
+func TestBuildIngressObject_ServiceBackend(t *testing.T) {
+    g := gomega.NewWithT(t)
+
+    result := buildIngressObject([]string{"192.168.1.1"})
+
+    // Verify the service backend configuration matches architecture expectations
+    // These ingress should point to kcm-k0rdent-ui service on port 80
+    backend := result.Spec.Rules[0].HTTP.Paths[0].Backend
+    g.Expect(backend.Service).ToNot(gomega.BeNil())
+    g.Expect(backend.Service.Name).To(gomega.Equal("kcm-k0rdent-ui"))
+    g.Expect(backend.Service.Port.Number).To(gomega.Equal(int32(80)))
 }
