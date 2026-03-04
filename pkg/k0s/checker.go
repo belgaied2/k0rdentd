@@ -12,6 +12,21 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// IsK0sRunning checks if k0s is currently running as a service
+func IsK0sRunning() bool {
+	// Run k0s status command
+	cmd := exec.Command("k0s", "status")
+	output, err := cmd.Output()
+	if err != nil {
+		utils.GetLogger().Debugf("k0s status check failed: %v", err)
+		return false
+	}
+
+	// Parse output to check if k0s is ready
+	outputStr := string(output)
+	return strings.Contains(outputStr, "Kube-api probing successful: true")
+}
+
 // CheckResult represents the result of k0s binary check
 type CheckResult struct {
 	Exists    bool
@@ -37,7 +52,7 @@ func CheckK0s() (*CheckResult, error) {
 	utils.GetLogger().Debugf("Found k0s binary at: %s", path)
 
 	// Get k0s version
-	version, err := getK0sVersion()
+	version, err := GetK0sVersion()
 	if err != nil {
 		return result, fmt.Errorf("failed to get k0s version: %w", err)
 	}
@@ -48,8 +63,8 @@ func CheckK0s() (*CheckResult, error) {
 	return result, nil
 }
 
-// getK0sVersion executes `k0s version` and parses the output
-func getK0sVersion() (string, error) {
+// GetK0sVersion executes `k0s version` and parses the output
+func GetK0sVersion() (string, error) {
 	cmd := exec.Command("k0s", "version")
 	output, err := cmd.Output()
 	if err != nil {
@@ -61,8 +76,23 @@ func getK0sVersion() (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-// InstallK0s installs k0s binary using the official install script
+// InstallK0s installs k0s binary using the official install script (latest version)
 func InstallK0s() error {
+	return InstallK0sVersion("")
+}
+
+// InstallK0sVersion installs a specific k0s version using the official install script
+// If version is empty, installs the latest stable version
+func InstallK0sVersion(version string) error {
+	// Validate version format if specified
+	if version != "" {
+		if err := ValidateVersion(version); err != nil {
+			return fmt.Errorf("invalid k0s version: %w", err)
+		}
+		utils.GetLogger().Infof("Installing k0s version %s...", version)
+	} else {
+		utils.GetLogger().Info("Installing k0s (latest stable version)...")
+	}
 
 	// Detect architecture and map to k0s accepted values
 	archCmd := exec.Command("uname", "-m")
@@ -91,9 +121,15 @@ func InstallK0s() error {
 	}
 	utils.GetLogger().Debug("Downloaded k0s install script successfully")
 
+	// Build environment variables for the install script
+	envVars := []string{"K0S_ARCH=" + arch}
+	if version != "" {
+		envVars = append(envVars, "K0S_VERSION="+version)
+	}
+
 	// Run the script with sudo
 	utils.GetLogger().Debug("Executing k0s install script...")
-	cmd := exec.Command("sudo", "K0S_ARCH="+arch, "sh")
+	cmd := exec.Command("sudo", append(envVars, "sh")...)
 	cmd.Stdin = bytes.NewReader(scriptContent)
 
 	// Run with spinner, only show output in debug mode
@@ -104,6 +140,25 @@ func InstallK0s() error {
 			return fmt.Errorf("failed to install k0s: %w. stdout: %s, stderr: %s", err, stdoutBuf.String(), stderrBuf.String())
 		}
 		return fmt.Errorf("failed to install k0s: %w", err)
+	}
+
+	// Verify installation
+	installedVersion, err := GetK0sVersion()
+	if err != nil {
+		return fmt.Errorf("k0s installed but failed to verify version: %w", err)
+	}
+
+	if version != "" {
+		// Verify that the installed version matches the requested version
+		equal, err := VersionsEqual(installedVersion, version)
+		if err != nil {
+			utils.GetLogger().Warnf("Could not verify installed version: %v", err)
+		} else if !equal {
+			return fmt.Errorf("k0s version mismatch: requested %s, installed %s", version, installedVersion)
+		}
+		utils.GetLogger().Infof("k0s version %s installed successfully", installedVersion)
+	} else {
+		utils.GetLogger().Infof("k0s version %s installed successfully", installedVersion)
 	}
 
 	return nil

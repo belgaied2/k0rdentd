@@ -143,3 +143,29 @@ which k0s
 # Install k0s manually
 curl -sSLf https://get.k0s.sh | sudo sh
 ```
+
+### K0s Version Conflicts
+
+If you have an existing k0s installation with a different version than specified in your config:
+
+**If k0s is not running:**
+```bash
+# Use --replace-k0s flag to replace the existing binary
+sudo k0rdentd install --replace-k0s
+
+# Or via environment variable
+K0RDENTD_REPLACE_K0S=true sudo k0rdentd install
+```
+
+**If k0s is running:**
+```bash
+# You must stop k0s first
+sudo k0s stop
+
+# Then run installation again
+sudo k0rdentd install --replace-k0s
+```
+
+**In airgap mode:**
+- The bundled k0s version is always used
+- A warning is logged if config version differs (installation continues)

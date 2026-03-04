@@ -32,6 +32,7 @@ k0rdentd install [flags]
 | `--k0rdent-version, -r` | - | Override K0rdent version from config |
 | `--join` | `false` | Join an existing cluster (requires --mode) |
 | `--mode` | - | Node mode: controller or worker (required if --join is set) |
+| `--replace-k0s, -R` | `false` | Replace existing k0s binary without prompting (only if not running) |
 | `--debug` | `false` | Enable debug logging |
 | `--dry-run` | `false` | Show what would be done |
 
@@ -43,6 +44,15 @@ sudo k0rdentd install
 
 # With custom config file
 sudo k0rdentd install -c /path/to/config.yaml
+
+# Install specific k0s version
+sudo k0rdentd install --k0s-version v1.32.4+k0s.0
+
+# Replace existing k0s binary (if not running)
+sudo k0rdentd install --replace-k0s
+
+# Or via environment variable
+K0RDENTD_REPLACE_K0S=true sudo k0rdentd install
 
 # Join as additional controller
 sudo k0rdentd install --join --mode=controller
@@ -64,13 +74,14 @@ sudo k0rdentd install --dry-run
 
 **First Controller (cluster-init):**
 1. Checks if K0s binary exists, installs if missing
-2. Generates K0s configuration from k0rdentd.yaml
-3. Installs K0s controller with worker enabled
-4. Starts K0s service
-5. Waits for K0s to be ready
-6. Waits for K0rdent Helm chart to be installed
-7. Creates cloud provider credentials (if configured)
-8. Exposes K0rdent UI
+2. Checks for k0s version conflicts (online mode only)
+3. Generates K0s configuration from k0rdentd.yaml
+4. Installs K0s controller with worker enabled
+5. Starts K0s service
+6. Waits for K0s to be ready
+7. Waits for K0rdent Helm chart to be installed
+8. Creates cloud provider credentials (if configured)
+9. Exposes K0rdent UI
 
 **Joining Node (controller or worker):**
 1. Reads join configuration from k0rdentd.yaml or CLI flags
@@ -79,6 +90,69 @@ sudo k0rdentd install --dry-run
 4. Installs K0s with join token
 5. Starts K0s service
 6. Waits for node to be ready
+
+### K0s Version Management
+
+K0rdentd provides comprehensive k0s version management that handles conflicts between:
+
+- **Bundled k0s version** (airgap mode) - Always used, warns if config differs
+- **Config file `k0s.version`** - Specifies desired version
+- **Already installed k0s binary** - Checked for conflicts
+
+#### Decision Matrix
+
+| Mode | k0s Exists? | Config Version? | Running? | Action |
+|------|-------------|-----------------|----------|--------|
+| Airgap | N/A | Any | N/A | Use bundled version, warn if config differs |
+| Online | No | Specified | N/A | Download specified version |
+| Online | No | Not specified | N/A | Use latest stable (via get.k0s.sh) |
+| Online | Yes | Same as installed | Any | Proceed with existing |
+| Online | Yes | Different | No | Use `--replace-k0s` to replace |
+| Online | Yes | Different | Yes | **Fail - require manual intervention** |
+
+#### Airgap Mode Behavior
+
+In airgap mode, the bundled k0s binary is always used. If `k0s.version` in the config differs from the bundled version, a warning is logged but installation continues:
+
+```
+⚠️  Config specifies k0s version v1.31.0+k0s.0, but bundled version is v1.32.4+k0s.0.
+   Using bundled version for airgap installation.
+```
+
+#### Online Mode Behavior
+
+**No existing k0s:**
+- If `k0s.version` is specified in config: Download that specific version
+- If `k0s.version` is NOT specified: Download latest stable version
+
+**Existing k0s - Same version:**
+- Proceed with installation using existing binary
+
+**Existing k0s - Different version (not running):**
+- Use `--replace-k0s` flag to replace the binary
+- Or fail with conflict message
+
+**Existing k0s - Different version (running):**
+- **Always fail** with manual intervention instructions:
+  ```
+  ❌ Cannot replace k0s while it's running!
+     The installed k0s (v1.30.0+k0s.0) is currently running as a service.
+     Config specifies: v1.32.4+k0s.0
+
+     To proceed, you must manually stop and reset k0s:
+       sudo k0s stop
+
+     Then run k0rdentd install again.
+  ```
+
+#### Version Format
+
+k0s versions follow the format: `v{KUBERNETES_VERSION}+k0s.{K0S_PATCH}`
+
+Examples:
+- `v1.32.4+k0s.0`
+- `v1.31.0+k0s.0`
+- `v1.30.0+k0s.0`
 
 ### Exit Codes
 
@@ -463,6 +537,7 @@ All CLI flags can be set via environment variables:
 | `K0RDENTD_LOG_LEVEL` | (sets log level) |
 | `K0RDENTD_K0S_VERSION` | (sets k0s.version in config) |
 | `K0RDENTD_K0RDENT_VERSION` | (sets k0rdent.version in config) |
+| `K0RDENTD_REPLACE_K0S` | `--replace-k0s` |
 | `K0RDENTD_AIRGAP_BUNDLE_PATH` | (sets airgap.bundlePath in config) |
 | `K0RDENTD_REGISTRY_ADDRESS` | (sets airgap.registry.address in config) |
 | `K0RDENTD_REGISTRY_PORT` | `--port` (for registry command) |

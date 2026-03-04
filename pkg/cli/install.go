@@ -38,6 +38,12 @@ var InstallCommand = &cli.Command{
 			Name:  "mode",
 			Usage: "Node mode: controller or worker (required if --join is set)",
 		},
+		&cli.BoolFlag{
+			Name:    "replace-k0s",
+			Aliases: []string{"R"},
+			Usage:   "Replace existing k0s binary without prompting (only if not running)",
+			EnvVars: []string{"K0RDENTD_REPLACE_K0S"},
+		},
 	},
 }
 
@@ -94,9 +100,18 @@ func installAction(c *cli.Context) error {
 	// If k0s is not installed, install it (for both init and join modes)
 	// In airgap mode, k0s binary should already be extracted from embedded assets
 	if !airgap.IsAirGap() && !k0sCheck.Installed {
-		logger.Info("k0s binary not found, installing...")
-		if err := k0s.InstallK0s(); err != nil {
-			return fmt.Errorf("failed to install k0s: %w", err)
+		if cfg.K0s.Version != "" {
+			// Install specific version if configured
+			logger.Infof("k0s binary not found, installing version %s...", cfg.K0s.Version)
+			if err := k0s.InstallK0sVersion(cfg.K0s.Version); err != nil {
+				return fmt.Errorf("failed to install k0s version %s: %w", cfg.K0s.Version, err)
+			}
+		} else {
+			// Install latest version
+			logger.Info("k0s binary not found, installing latest version...")
+			if err := k0s.InstallK0s(); err != nil {
+				return fmt.Errorf("failed to install k0s: %w", err)
+			}
 		}
 	}
 
@@ -106,6 +121,11 @@ func installAction(c *cli.Context) error {
 		c.Bool("dry-run"),
 	)
 	inst.SetConfig(cfg)
+
+	// Set replace-k0s flag if specified
+	if c.IsSet("replace-k0s") {
+		inst.SetReplaceK0s(c.Bool("replace-k0s"))
+	}
 
 	// Execute installation based on mode
 	if joinMode != "" {

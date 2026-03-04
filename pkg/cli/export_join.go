@@ -8,6 +8,7 @@ import (
 
 	"github.com/belgaied2/k0rdentd/internal/airgap"
 	"github.com/belgaied2/k0rdentd/pkg/config"
+	checker "github.com/belgaied2/k0rdentd/pkg/k0s"
 	"github.com/belgaied2/k0rdentd/pkg/network"
 	"github.com/belgaied2/k0rdentd/pkg/token"
 	"github.com/belgaied2/k0rdentd/pkg/utils"
@@ -27,8 +28,8 @@ var ExportJoinConfigCommand = &cli.Command{
 			Usage:   "Output directory for join config files",
 		},
 		&cli.StringFlag{
-			Name:    "controller-ip",
-			Usage:   "Override auto-detected controller IP address",
+			Name:  "controller-ip",
+			Usage: "Override auto-detected controller IP address",
 		},
 		&cli.DurationFlag{
 			Name:    "expiry",
@@ -37,9 +38,9 @@ var ExportJoinConfigCommand = &cli.Command{
 			Usage:   "Token expiry time (e.g., 24h, 168h for 7 days)",
 		},
 		&cli.IntFlag{
-			Name:    "registry-port",
-			Value:   5000,
-			Usage:   "Registry port for airgap mode",
+			Name:  "registry-port",
+			Value: 5000,
+			Usage: "Registry port for airgap mode",
 		},
 		&cli.BoolFlag{
 			Name:    "overwrite",
@@ -125,9 +126,13 @@ func exportJoinConfigAction(c *cli.Context) error {
 
 // generateJoinConfig creates a join configuration file content
 func generateJoinConfig(baseCfg *config.K0rdentdConfig, mode, controllerIP, token string, registryPort int) *config.K0rdentdConfig {
+	version, err := checker.GetK0sVersion()
+	if err != nil {
+		version = baseCfg.K0s.Version
+	}
 	cfg := &config.K0rdentdConfig{
 		K0s: config.K0sConfig{
-			Version: baseCfg.K0s.Version,
+			Version: version,
 		},
 		Join: config.JoinConfig{
 			Mode:   mode,

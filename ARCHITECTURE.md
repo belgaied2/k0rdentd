@@ -603,7 +603,119 @@ The `k0s` package manages k0s binary installation and checking:
 
 In airgap mode, k0s is extracted from embedded assets instead of being downloaded.
 
-### 6. Testing Strategy
+### 6.6 K0s Version Management
+
+K0rdentd provides comprehensive k0s version management to handle conflicts between the bundled version (airgap), config file settings, and existing installations.
+
+#### Decision Matrix
+
+| Mode | k0s Exists? | Config Version? | Running? | Action |
+|------|-------------|-----------------|----------|--------|
+| Airgap | N/A | Any | N/A | Use bundled version, warn if config differs |
+| Online | No | Specified | N/A | Download specified version |
+| Online | No | Not specified | N/A | Use latest stable (via get.k0s.sh) |
+| Online | Yes | Same as installed | Any | Proceed with existing |
+| Online | Yes | Different | No | Prompt user or use `--replace-k0s` |
+| Online | Yes | Different | Yes | **Fail - require manual intervention** |
+
+#### Airgap Mode Behavior
+
+```mermaid
+flowchart TD
+    A[Airgap Install] --> B[Get Bundled Version]
+    B --> C{Config Version<br/>Differs?}
+    C -->|Yes| D[Log Warning]
+    C -->|No| E[Extract Bundled k0s]
+    D --> E
+    E --> F[Continue Install]
+```
+
+- Always use the bundled k0s binary (embedded at build time)
+- If `k0s.version` in config differs: log **WARNING** and continue
+- Do NOT fail installation on version mismatch
+
+Example warning:
+```
+⚠️  Config specifies k0s version v1.31.0+k0s.0, but bundled version is v1.32.4+k0s.0.
+   Using bundled version for airgap installation.
+```
+
+#### Online Mode Behavior
+
+```mermaid
+flowchart TD
+    A[Online Install] --> B{K0s Exists?}
+    B -->|No| C{Config Version?}
+    C -->|Specified| D[Download Specific Version<br/>via K0S_VERSION env]
+    C -->|Not Specified| E[Download Latest<br/>via get.k0s.sh]
+    D --> F[Continue Install]
+    E --> F
+
+    B -->|Yes| G{Running?}
+    G -->|Yes| H{Version Match?}
+    H -->|Yes| F
+    H -->|No| I[Fail:<br/>Manual Intervention Required]
+
+    G -->|No| J{Version Match?}
+    J -->|Yes| F
+    J -->|No| K{Interactive?}
+    K -->|Yes| L[Prompt User]
+    K -->|No, --replace-k0s| M[Replace k0s]
+    K -->|No, no flag| N[Fail: Conflict]
+    L -->|Replace| M
+    L -->|Keep| O[Suggest Config Update]
+    L -->|Abort| P[Exit]
+    M --> F
+    O --> F
+```
+
+**Version Detection:**
+- Use `k0s version` command to detect installed version
+- Use `k0s status` or systemctl to check if k0s is running
+
+**k0s Download:**
+- Use official install script: `https://get.k0s.sh`
+- For specific versions, pass `K0S_VERSION` environment variable:
+  ```bash
+  curl -sSf https://get.k0s.sh | sudo K0S_VERSION=v1.32.4+k0s.0 sh
+  ```
+
+#### CLI Flags and Environment Variables
+
+| Flag | Environment Variable | Description |
+|------|---------------------|-------------|
+| `--replace-k0s` | `K0RDENTD_REPLACE_K0S=true` | Replace existing k0s without prompting |
+
+#### Interactive Prompt Example
+
+```
+⚠️  k0s version conflict detected!
+   Installed: v1.30.0+k0s.0
+   Config:    v1.32.4+k0s.0
+
+Choose an action:
+[1] Replace installed k0s with v1.32.4+k0s.0
+[2] Keep existing k0s and update config to v1.30.0+k0s.0
+[3] Abort installation
+```
+
+#### Running k0s Conflict
+
+If k0s is running and versions don't match, installation **always fails**:
+
+```
+❌ Cannot replace k0s while it's running!
+   The installed k0s (v1.30.0+k0s.0) is currently running as a service.
+   Config specifies: v1.32.4+k0s.0
+
+   To proceed, you must manually stop and reset k0s:
+     sudo k0s stop
+     sudo k0s reset
+
+   Then run k0rdentd install again.
+```
+
+### 7. Testing Strategy
 
 #### Unit Tests (ginkgo/gomega)
 - Configuration parsing and validation
@@ -639,7 +751,9 @@ In airgap mode, k0s is extracted from embedded assets instead of being downloade
 │   ├── k8sclient/          # Kubernetes client-go wrapper
 │   │   ├── client.go       # Core client functionality
 │   │   └── k0s.go          # K0s-specific kubeconfig retrieval
-│   ├── k0s/                # K0s binary management and checking
+│   ├── k0s/                # K0s binary management, checking, and version management
+│   │   ├── checker.go      # K0s binary existence and version checks
+│   │   └── version.go      # Version comparison and validation
 │   ├── network/            # Network utilities (IP detection)
 │   │   └── ipdetect.go     # IP auto-detection for multi-node
 │   ├── token/              # Token management

@@ -56,7 +56,7 @@ func TestGetK0sVersion(t *testing.T) {
 	t.Run("valid version output", func(t *testing.T) {
 		// This test would need to be run with a mock or actual k0s binary
 		// For now, we'll just verify the function signature and basic logic
-		version, err := getK0sVersion()
+		version, err := GetK0sVersion()
 		g.Expect(err).To(gomega.BeNil())
 		g.Expect(version).To(gomega.Not(gomega.BeEmpty()))
 	})

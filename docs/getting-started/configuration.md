@@ -85,24 +85,43 @@ The `k0s` section configures the underlying K0s cluster:
 k0s:
   # K0s version to install
   version: "v1.32.4+k0s.0"
-  
+
   # API server configuration
   api:
     address: "0.0.0.0"  # API server bind address
     port: 6443          # API server port
-  
+
   # Network configuration
   network:
     provider: "calico"           # CNI provider: calico, kuberouter
     podCIDR: "10.244.0.0/16"     # Pod CIDR range
     serviceCIDR: "10.96.0.0/12"  # Service CIDR range
-  
+
   # Storage configuration
   storage:
     type: "etcd"  # Storage type: etcd, kine
     etcd:
       peerAddress: "127.0.0.1"  # etcd peer address
 ```
+
+#### K0s Version Management
+
+The `k0s.version` field controls which k0s version is installed:
+
+**Online Mode:**
+- If specified: Downloads the exact version from get.k0s.sh
+- If not specified: Downloads the latest stable version
+- If k0s is already installed with a different version, use `--replace-k0s` flag
+
+**Airgap Mode:**
+- The bundled k0s version is always used
+- If `k0s.version` differs from bundled version, a warning is logged
+
+**Version Format:** `v{KUBERNETES_VERSION}+k0s.{K0S_PATCH}`
+
+Examples: `v1.32.4+k0s.0`, `v1.31.0+k0s.0`, `v1.30.0+k0s.0`
+
+See [CLI Reference](../user-guide/cli-reference.md#k0s-version-management) for complete version conflict handling documentation.
 
 ### K0rdent Configuration
 
@@ -211,6 +230,7 @@ All configuration options can be overridden with environment variables:
 | `K0RDENTD_LOG_LEVEL` | `logLevel` |
 | `K0RDENTD_K0S_VERSION` | `k0s.version` |
 | `K0RDENTD_K0RDENT_VERSION` | `k0rdent.version` |
+| `K0RDENTD_REPLACE_K0S` | Replace existing k0s binary (set to `true`) |
 | `K0RDENTD_AIRGAP_BUNDLE_PATH` | `airgap.bundlePath` |
 | `K0RDENTD_REGISTRY_ADDRESS` | `airgap.registry.address` |
 
@@ -219,6 +239,7 @@ Example:
 ```bash
 export K0RDENTD_DEBUG=true
 export K0RDENTD_K0S_VERSION=v1.32.4+k0s.0
+export K0RDENTD_REPLACE_K0S=true
 sudo k0rdentd install
 ```
 

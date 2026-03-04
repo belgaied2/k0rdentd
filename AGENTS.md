@@ -39,6 +39,8 @@ K0rdentd is a CLI tool which deploys K0s and K0rdent on the VM it runs on. It fo
 
 ## Documentation
 
+- The codebase (all functions and their description) is documented in @AGENT_DOCS/CODEBASE_REFERENCE.md, use that in conjunction with @ARCHITECTURE.md to understand the codebase. Only if it is still unclear, check the actual code (.go files) in a targetted manner.
+- Always update the @AGENT_DOCS/CODEBASE_REFERENCE.md whenever you make changes to the code. This file MUST be always up-to-date.
 - Prefer using `context7` when you need library/API documentation, setup steps, architecture decisions or code generation.
 - More specifically if you need to do ANYTHING related to :
   - `k0s`: check `k0sproject/k0s` on context7 before generating code or suggesting architecture.

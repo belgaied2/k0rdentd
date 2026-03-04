@@ -8,32 +8,39 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/belgaied2/k0rdentd/internal/airgap"
 	"github.com/belgaied2/k0rdentd/pkg/config"
 	"github.com/belgaied2/k0rdentd/pkg/credentials"
+	"github.com/belgaied2/k0rdentd/pkg/k0s"
 	"github.com/belgaied2/k0rdentd/pkg/k8sclient"
 	"github.com/belgaied2/k0rdentd/pkg/utils"
 )
 
 // Installer handles the installation and uninstallation of K0s and K0rdent
 type Installer struct {
-	debug     bool
-	dryRun    bool
-	k8sClient *k8sclient.Client
-	config    *config.K0rdentdConfig // Store full config for airgap support
-	airgapped bool
+	debug      bool
+	dryRun     bool
+	k8sClient  *k8sclient.Client
+	config     *config.K0rdentdConfig // Store full config for airgap support
+	airgapped  bool
+	replaceK0s bool // Replace existing k0s binary without prompting
 }
 
 // NewInstaller creates a new installer instance
 func NewInstaller(debug, dryRun bool) *Installer {
 	return &Installer{
-		debug:     debug,
-		dryRun:    dryRun,
-		airgapped: false,
+		debug:      debug,
+		dryRun:     dryRun,
+		airgapped:  false,
+		replaceK0s: false,
 	}
+}
+
+// SetReplaceK0s sets whether to replace existing k0s binary without prompting
+func (i *Installer) SetReplaceK0s(replace bool) {
+	i.replaceK0s = replace
 }
 
 // SetConfig sets the full configuration (needed for airgap support)
@@ -88,14 +95,26 @@ func (i *Installer) Install(k0sConfig []byte, k0rdentConfig *config.K0rdentConfi
 	// Online installation
 	if i.dryRun {
 		utils.GetLogger().Infof("📝 Dry run mode - showing what would be done:")
-		utils.GetLogger().Infof("1. Write K0s configuration to /etc/k0s/k0s.yaml")
-		utils.GetLogger().Infof("2. Execute: k0s install --config /etc/k0s/k0s.yaml")
-		utils.GetLogger().Infof("3. Start K0s service")
-		utils.GetLogger().Infof("4. Wait for K0rdent to be installed")
+		utils.GetLogger().Infof("1. Check k0s version conflicts")
+		utils.GetLogger().Infof("2. Write K0s configuration to /etc/k0s/k0s.yaml")
+		utils.GetLogger().Infof("3. Execute: k0s install --config /etc/k0s/k0s.yaml")
+		utils.GetLogger().Infof("4. Start K0s service")
+		utils.GetLogger().Infof("5. Wait for K0rdent to be installed")
 		if k0rdentConfig != nil && k0rdentConfig.Credentials.HasCredentials() {
-			utils.GetLogger().Infof("5. Create cloud provider credentials")
+			utils.GetLogger().Infof("6. Create cloud provider credentials")
 		}
 		return nil
+	}
+
+	// Check for k0s version conflicts (online mode only)
+	if i.config != nil {
+		conflict, err := i.CheckK0sVersionConflict(i.config.K0s.Version)
+		if err != nil {
+			return fmt.Errorf("failed to check k0s version: %w", err)
+		}
+		if err := i.HandleVersionConflict(conflict); err != nil {
+			return fmt.Errorf("k0s version conflict: %w", err)
+		}
 	}
 
 	// Write K0s configuration
@@ -180,9 +199,18 @@ func (i *Installer) InstallJoin(joinConfig *config.JoinConfig) error {
 	// Install k0s in join mode
 	// Note: k0s token includes server information, no --server flag needed
 	var stderrBuf bytes.Buffer
-	installArgs := []string{
-		"install", joinConfig.Mode,
-		"--token-file", tokenFile,
+	installArgs := []string{}
+	if joinConfig.Mode == "controller" {
+		installArgs = []string{
+			"install", joinConfig.Mode,
+			"--enable-worker",
+			"--token-file", tokenFile,
+		}
+	} else {
+		installArgs = []string{
+			"install", joinConfig.Mode,
+			"--token-file", tokenFile,
+		}
 	}
 
 	cmd := exec.Command("k0s", installArgs...)
@@ -306,15 +334,21 @@ func (i *Installer) installAirgap(k0rdentConfig *config.K0rdentConfig) error {
 	logger.Infof("Air-gapped installation (K0s: %s)",
 		metadata.K0sVersion)
 
+	// Check for version mismatch between config and bundled version (airgap mode)
+	if i.config != nil {
+		CheckAirgapVersionMismatch(i.config.K0s.Version, metadata.K0sVersion)
+	}
+
 	if i.dryRun {
 		logger.Infof("📝 Dry run mode - airgap installation steps:")
-		logger.Infof("1. Extract k0rdent version from bundle")
-		logger.Infof("2. Extract k0s binary from embedded assets")
-		logger.Infof("3. Generate k0s configuration for airgap mode")
-		logger.Infof("4. Install k0s with embedded binary")
-		logger.Infof("5. k0s will automatically install k0rdent from local registry via helm operator")
+		logger.Infof("1. Check k0s version mismatch (config vs bundled)")
+		logger.Infof("2. Extract k0rdent version from bundle")
+		logger.Infof("3. Extract k0s binary from embedded assets")
+		logger.Infof("4. Generate k0s configuration for airgap mode")
+		logger.Infof("5. Install k0s with embedded binary")
+		logger.Infof("6. k0s will automatically install k0rdent from local registry via helm operator")
 		if k0rdentConfig != nil && k0rdentConfig.Credentials.HasCredentials() {
-			logger.Infof("6. Create cloud provider credentials")
+			logger.Infof("7. Create cloud provider credentials")
 		}
 		return nil
 	}
@@ -610,18 +644,7 @@ func isK0sInstalled() bool {
 
 // isK0sRunning checks if k0s is running by checking its status
 func isK0sRunning() bool {
-	// Run k0s status command
-	cmd := exec.Command("k0s", "status")
-	output, err := cmd.Output()
-	if err != nil {
-		// Log the error but return false
-		utils.GetLogger().Debugf("k0s status check failed: %v", err)
-		return false
-	}
-
-	// Parse output to check if k0s is ready
-	outputStr := string(output)
-	return strings.Contains(outputStr, "Kube-api probing successful: true")
+	return k0s.IsK0sRunning()
 }
 
 // isK0sStarted checks if K0s is started by checking its status
@@ -768,4 +791,120 @@ func (i *Installer) cleanupConfig() error {
 	}
 
 	return nil
+}
+
+// CheckK0sVersionConflict checks for k0s version conflicts between installed and configured versions
+// Returns a VersionConflict if there's a conflict, nil otherwise
+func (i *Installer) CheckK0sVersionConflict(configVersion string) (*k0s.VersionConflict, error) {
+	logger := utils.GetLogger()
+
+	// Check if k0s binary exists
+	k0sCheck, err := k0s.CheckK0s()
+	if err != nil {
+		return nil, fmt.Errorf("failed to check k0s: %w", err)
+	}
+
+	// No conflict if k0s is not installed
+	if !k0sCheck.Exists {
+		logger.Debug("k0s not installed, no version conflict")
+		return nil, nil
+	}
+
+	// No conflict if no config version specified
+	if configVersion == "" {
+		logger.Debug("No k0s version specified in config, using installed version")
+		return nil, nil
+	}
+
+	// Check if versions match
+	equal, err := k0s.VersionsEqual(k0sCheck.Version, configVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compare k0s versions: %w", err)
+	}
+
+	// No conflict if versions match
+	if equal {
+		logger.Debugf("k0s version %s matches config, no conflict", k0sCheck.Version)
+		return nil, nil
+	}
+
+	// There's a version conflict
+	conflict := &k0s.VersionConflict{
+		InstalledVersion: k0sCheck.Version,
+		ConfigVersion:    configVersion,
+		IsRunning:        k0s.IsK0sRunning(),
+	}
+
+	logger.Debugf("k0s version conflict detected: %s", conflict.String())
+	return conflict, nil
+}
+
+// HandleVersionConflict handles a k0s version conflict
+// Returns an error if the conflict cannot be resolved
+func (i *Installer) HandleVersionConflict(conflict *k0s.VersionConflict) error {
+	logger := utils.GetLogger()
+
+	if conflict == nil {
+		return nil
+	}
+
+	// If k0s is running with a different version, we cannot proceed automatically
+	if conflict.RequiresManualIntervention() {
+		logger.Errorf("❌ %s", k0s.FormatRunningConflictError(conflict.InstalledVersion, conflict.ConfigVersion))
+		return fmt.Errorf("%s", k0s.FormatRunningConflictError(conflict.InstalledVersion, conflict.ConfigVersion))
+	}
+
+	// If we can auto-replace (k0s not running but different version)
+	if conflict.CanAutoReplace() {
+		if i.replaceK0s {
+			logger.Infof("Replacing k0s %s with %s (--replace-k0s flag set)",
+				conflict.InstalledVersion, conflict.ConfigVersion)
+			return i.replaceK0sBinary(conflict.ConfigVersion)
+		}
+
+		// No auto-replace flag, prompt or fail
+		logger.Warnf("⚠️  %s", k0s.FormatConflictMessage(conflict.InstalledVersion, conflict.ConfigVersion))
+		return fmt.Errorf("k0s version conflict: installed %s, config specifies %s. Use --replace-k0s to replace the existing k0s binary",
+			conflict.InstalledVersion, conflict.ConfigVersion)
+	}
+
+	return nil
+}
+
+// replaceK0sBinary replaces the k0s binary with a specific version
+func (i *Installer) replaceK0sBinary(version string) error {
+	logger := utils.GetLogger()
+
+	logger.Infof("Downloading and installing k0s version %s...", version)
+	if err := k0s.InstallK0sVersion(version); err != nil {
+		return fmt.Errorf("failed to replace k0s: %w", err)
+	}
+
+	logger.Infof("✅ k0s replaced with version %s", version)
+	return nil
+}
+
+// CheckAirgapVersionMismatch checks for version mismatch in airgap mode
+// Returns true if there's a mismatch (logs a warning), false otherwise
+func CheckAirgapVersionMismatch(configVersion, bundledVersion string) bool {
+	logger := utils.GetLogger()
+
+	// No mismatch if config version is not specified
+	if configVersion == "" {
+		return false
+	}
+
+	// Check if versions match
+	equal, err := k0s.VersionsEqual(configVersion, bundledVersion)
+	if err != nil {
+		logger.Warnf("Could not compare k0s versions: %v", err)
+		return false
+	}
+
+	if !equal {
+		logger.Warnf("⚠️  %s", k0s.FormatWarningMessage(configVersion, bundledVersion))
+		return true
+	}
+
+	return false
 }
