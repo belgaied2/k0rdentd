@@ -172,6 +172,114 @@ lint:
 		echo "golangci-lint not installed. Run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin"; \
 	fi
 
+## test-airgap-remote: Test airgap build on remote machines (3 servers)
+## Usage: make test-airgap-remote SERVER1=10.0.0.1 SERVER2=10.0.0.2 SERVER3=10.0.0.3"
+## Optional: SSH_USER=user SSH_KEY=~/.ssh/id_rsa
+.PHONY: test-airgap-remote
+test-airgap-remote: test-check-servers push-build remote-install-airgap-init remote-push-join-configs remote-install-airgap-join
+
+test-check-servers:
+	@# Validate we have 3 servers
+	@if [ -z "$(SERVER1)" ] || [ -z "$(SERVER2)" ] || [ -z "$(SERVER3)" ]; then \
+		echo "Error: Exactly 3 servers are required"; \
+		echo "Provided: $(SERVER1) $(SERVER2) $(SERVER3)"; \
+		exit 1; \
+	fi
+	@echo "=== Testing airgap build on remote machines ==="
+	@echo "Server 1 (controller): $(SERVER1)"
+	@echo "Server 2 (controller): $(SERVER2)"
+	@echo "Server 3 (controller): $(SERVER3)"
+	@echo "SSH User: $(or $(SSH_USER),$${USER})"
+
+
+push-build:
+	@echo ""
+	@# Build airgap binary
+	@echo ">>> Step 1: Building airgap binary..."
+	$(MAKE) build-airgap
+	@# Copy binary to all servers
+	@echo ">>> Step 2: Copying binary to all servers..."
+	@scp $(SSH_OPTS) bin/k0rdentd-airgap $(or $(SSH_USER),$${USER})@$(SERVER1):~/
+	@scp $(SSH_OPTS) bin/k0rdentd-airgap $(or $(SSH_USER),$${USER})@$(SERVER2):~/
+	@scp $(SSH_OPTS) bin/k0rdentd-airgap $(or $(SSH_USER),$${USER})@$(SERVER3):~/
+	@echo ""
+	@# Move binary to /usr/local/bin on each server
+	@echo ">>> Step 3: Moving binary to /usr/local/bin on all servers..."
+	@ssh $(SSH_OPTS) $(or $(SSH_USER),$${USER})@$(SERVER1) "sudo mv ~/k0rdentd-airgap /usr/local/bin/"
+	@ssh $(SSH_OPTS) $(or $(SSH_USER),$${USER})@$(SERVER2) "sudo mv ~/k0rdentd-airgap /usr/local/bin/"
+	@ssh $(SSH_OPTS) $(or $(SSH_USER),$${USER})@$(SERVER3) "sudo mv ~/k0rdentd-airgap /usr/local/bin/"
+	@echo ""
+	
+remote-install-airgap-init:
+	@# Install on first server and wait for completion
+	@echo ">>> Step 4: Installing on server 1 (first controller)..."
+	@ssh $(SSH_OPTS) $(or $(SSH_USER),$${USER})@$(SERVER1) "sudo /usr/local/bin/k0rdentd-airgap install"
+	@echo ""
+	@# Export join config from first server
+	@echo ">>> Step 5: Exporting join config from server 1..."
+	@ssh $(SSH_OPTS) $(or $(SSH_USER),$${USER})@$(SERVER1) "sudo /usr/local/bin/k0rdentd-airgap export-join-config --overwrite"
+	@echo ""
+
+remote-push-join-configs:
+	@# Copy join config from server 1 to servers 2 and 3
+	@echo ">>> Step 6: Copying join config to servers 2 and 3..."
+	@# First copy to local temp, then distribute
+	@scp $(SSH_OPTS) $(or $(SSH_USER),$${USER})@$(SERVER1):~/join-configs/controller-join.yaml /tmp/controller-join.yaml
+	@scp $(SSH_OPTS) /tmp/controller-join.yaml $(or $(SSH_USER),$${USER})@$(SERVER2):~/
+	@scp $(SSH_OPTS) /tmp/controller-join.yaml $(or $(SSH_USER),$${USER})@$(SERVER3):~/
+	@rm -f /tmp/controller-join.yaml
+	@echo ""
+	@# Move join config to /etc/k0rdentd/ on servers 2 and 3
+	@echo ">>> Step 7: Configuring join on servers 2 and 3..."
+	@ssh $(SSH_OPTS) $(or $(SSH_USER),$${USER})@$(SERVER2) "sudo mkdir -p /etc/k0rdentd && sudo cp ~/controller-join.yaml /etc/k0rdentd/k0rdentd.yaml"
+	@ssh $(SSH_OPTS) $(or $(SSH_USER),$${USER})@$(SERVER3) "sudo mkdir -p /etc/k0rdentd && sudo cp ~/controller-join.yaml /etc/k0rdentd/k0rdentd.yaml"
+	@echo ""
+
+remote-install-airgap-join:
+	@# Install on servers 2 and 3
+	@echo ">>> Step 8: Installing on server 2 (joining cluster)..."
+	@ssh $(SSH_OPTS) $(or $(SSH_USER),$${USER})@$(SERVER2) "sudo /usr/local/bin/k0rdentd-airgap install"
+	@echo ""
+	@echo ">>> Step 9: Installing on server 3 (joining cluster)..."
+	@ssh $(SSH_OPTS) $(or $(SSH_USER),$${USER})@$(SERVER3) "sudo /usr/local/bin/k0rdentd-airgap install"
+	@echo ""
+	@echo ""
+	@echo "=== Multi-node airgap deployment complete ==="
+	@echo "Cluster should now have 3 controllers"
+	@echo "Verify with: ssh $(or $(SSH_USER),$${USER})@$(SERVER1) 'sudo k0s kubectl get nodes'"
+
+## test-airgap-remote-quick: Quick test on a single remote machine
+## Usage: make test-airgap-remote-quick SERVER=10.0.0.1
+.PHONY: test-airgap-remote-quick
+test-airgap-remote-quick:
+	@if [ -z "$(SERVER)" ]; then \
+		echo "Error: SERVER parameter is required"; \
+		echo "Usage: make test-airgap-remote-quick SERVER=\"ip\""; \
+		exit 1; \
+	fi
+	@echo "=== Quick testing airgap build on $(SERVER) ==="
+	@echo ">>> Building airgap binary..."
+	$(MAKE) build-airgap
+	@echo ">>> Copying binary to $(SERVER)..."
+	@scp $(SSH_OPTS) bin/k0rdentd-airgap $(or $(SSH_USER),$${USER})@$(SERVER):~/
+	@echo ">>> Moving binary to /usr/local/bin..."
+	@ssh $(SSH_OPTS) $(or $(SSH_USER),$${USER})@$(SERVER) "sudo mv ~/k0rdentd-airgap /usr/local/bin/"
+	@echo ">>> Running install..."
+	@ssh $(SSH_OPTS) $(or $(SSH_USER),$${USER})@$(SERVER) "sudo /usr/local/bin/k0rdentd-airgap install"
+	@echo "✓ Single-node airgap deployment complete"
+
+.PHONY: test-clean-remote
+test-clean-remote:
+	@if [ -z "$(SERVER)" ]; then \
+		echo "Error: SERVER parameter is required"; \
+		exit 1; \
+	fi
+	@ssh $(SSH_OPTS) $(or $(SSH_USER),$${USER})@$(SERVER) "sudo /usr/local/bin/k0rdentd-airgap uninstall --force"
+	@ssh $(SSH_OPTS) $(or $(SSH_USER),$${USER})@$(SERVER) "sudo rm -rf /etc/k0s"
+	@ssh $(SSH_OPTS) $(or $(SSH_USER),$${USER})@$(SERVER) "sudo rm -rf /etc/k0rdentd"
+	@ssh $(SSH_OPTS) $(or $(SSH_USER),$${USER})@$(SERVER) "sudo rm -rf /usr/local/bin/k0*"
+	@ssh $(SSH_OPTS) $(or $(SSH_USER),$${USER})@$(SERVER) "rm controller-join.yaml"
+
 ## help: Show this help message
 .PHONY: help
 help:
@@ -181,3 +289,4 @@ help:
 	@echo ""
 	@echo "Targets:"
 	@sed -n 's/^##//p' $(MAKEFILE_LIST) | column -t -s ':' | sed -e 's/^/ /'
+
