@@ -1,16 +1,12 @@
 # K0rdentd
 
-K0rdentd is a CLI tool which deploys K0s and K0rdent on the VM it runs on. It follows a similar pattern to [RancherD](https://github.com/harvester/rancherd) which installs RKE2 and Rancher in one go. 
+K0rdentd is a CLI tool which deploys K0s and K0rdent on the VM it runs on. Its primary goal is to simplify the multi-step installation process `K0rdentd`. The idea is to offer limited options and sane defaults to the user, in order to not overwhelm him. At best the user should be able to install K0rdent with minimal Kubernetes, Helm or even command line knowledge.
 
-## Architecture
+## Before Implementing anything
 
-- Use urfave/cli to handle CLI features
-- Accept a config file in the same manner as rancherd, the config file should be in YAML format and offer configuration options for k0s and for k0rdent. Its default location should be `/etc/k0rdentd/k0rdentd.yaml` but it should be configurable using CLI flags or environment variables.
-- RancherD relies on a `Plan` mechanism that relies on an external component called `Upgrade Controller`, we don't want that here, we want to simply call `k0s` binary and configure it with `/etc/k0s/k0s.yaml` based on the content of the `/etc/k0rdentd/k0rdentd.yaml` file.
-- `k0rdent` should be installed using the k0s addon mechanism (under `.spec.extensions.helm` of the `k0s.yaml`, more information avaible [here](https://docs.k0sproject.io/stable/helm-charts/)).
 - Always check the [ARCHITECTURE.md](./ARCHITECTURE.md) file for references about the architecture.
-- Make sure that you read all docuement under ./docs before design and implementing anything new.
-- under [spinner.go](./pkg/utils/spinner.go), there is a spinner that is implemented for re-use whenever a waiting loop is used for checking something repeatedly. Make sure to re-use it whenever you think of implementing a waiting mechanism.
+- If you ever want to check the codebase, begin by reading [the codebase reference](./AGENT_DOCS/CODEBASE_REFERENCE.md).
+- Make sure you follow what is written in the `## Documentation` section below.
 
 ## Testing
 
@@ -54,10 +50,33 @@ K0rdentd is a CLI tool which deploys K0s and K0rdent on the VM it runs on. It fo
   - For end users of k0rdentd
 
 - **`./AGENT_DOCS/`** - Agent-facing documentation
-  - Implementation plans (`IMPLEMENTATION_PLAN_*.md`)
-  - Bug reports and fixes (`BUG_*.md`)
-  - Feature specifications (`FEATURE_*.md`)
-  - Always read these before implementing new features
+  - Implementation plans, bug reports, feature specifications
+  - Read whatever file might be relevant to your task based on the catalog below
+  - **IMPORTANT**: When creating new AGENT_DOCS files or making significant changes to existing ones, update this catalog to keep it accurate
+
+  **File Catalog:**
+
+  | File | Type | Description |
+  |------|------|-------------|
+  | `IMPLEMENTATION_PLAN.md` | Plan | Go module structure and initial directory setup (foundational) |
+  | `IMPLEMENTATION_PLAN_CREDENTIALS.md` | Plan | Cloud credentials support implementation (AWS, Azure, OpenStack) |
+  | `IMPLEMENTATION_PLAN_AIRGAP.md` | Plan | Airgap installation with OCI registry daemon (multi-phase) |
+  | `IMPLEMENTATION_PLAN_SKOPEO_EMBEDDING.md` | Plan | Skopeo binary embedding for airgap builds (COMPLETED) |
+  | `IMPLEMENTATION_PLAN_E2E_TESTING.md` | Plan | E2E testing infrastructure using AWS EC2 and Terratest |
+  | `FEATURE_check_k0s.md` | Feature | K0s binary existence check and installation logic |
+  | `FEATURE_expose_k0rdent-ui.md` | Feature | Exposing k0rdent UI via ingress with IP detection |
+  | `FEATURE_Use_clientgo.md` | Feature | Switch from kubectl exec to client-go for K8s operations |
+  | `FEATURE_credentials_support.md` | Feature | Cloud provider credentials auto-creation (design spec) |
+  | `FEATURE_airgap.md` | Feature | Air-gapped installation with external bundle + OCI registry |
+  | `FEATURE_CONTAINERD_MIRROR.md` | Feature | Containerd registry mirror configuration for airgap |
+  | `FEATURE_GitHub_Action_Release.md` | Feature | GitHub Actions workflow for releases (online + airgap builds) |
+  | `FEATURE_K0RDENT_BUNDLE_CATALOG.md` | Reference | Catalog of k0rdent enterprise airgap bundle contents (images, charts) |
+  | `FEATURE_k0s_version_management.md` | Feature | K0s version conflict handling between bundled/config/installed |
+  | `FEATURE_multi_node.md` | Feature | Multi-node cluster support (controllers, workers, join tokens) |
+  | `BUG_K0rdent_install_check_wrong.md` | Bug | Fixed: K0rdent readiness check using deployments instead of pods |
+  | `BUG_Credentials_timing_issue_CAPI_providers_not_ready.md` | Bug | Fixed: Wait for CAPI providers before creating credentials |
+  | `BUG_OCI_REGISTRY_PUSH_TAG.md` | Bug | Fixed: OCI image reference tag formatting and path structure |
+  | `CODEBASE_REFERENCE.md` | Reference | Complete function/struct documentation by package (always up-to-date) |
 
 - **`./ARCHITECTURE.md`** - High-level architecture reference
   - Always check this for overall architecture context
