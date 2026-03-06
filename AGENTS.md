@@ -4,8 +4,21 @@ K0rdentd is a CLI tool which deploys K0s and K0rdent on the VM it runs on. Its p
 
 ## Before Implementing anything
 
-- Always check the [ARCHITECTURE.md](./ARCHITECTURE.md) file for references about the architecture.
-- If you ever want to check the codebase, begin by reading [the codebase reference](./AGENT_DOCS/CODEBASE_REFERENCE.md).
+<system_constraints>
+    <priority_instructions>
+        <rule id="pre_flight_check">
+            <trigger>BEFORE_CODEBASE_ACCESS</trigger>
+            <action_required>
+                CRITICAL: Before checking or reading any file in the codebase, you MUST perform the following lookup sequence:
+                1. Read /ARCHITECTURE.md to establish a high-level project mental model.
+                2. Read ./AGENT_DIRS/CODEBASE_REFERENCE.md to map specific functions to their descriptions.
+            </action_required>
+            <goal>
+                Use the mapping from CODEBASE_REFERENCE.md to pinpoint exactly which files require reading, avoiding unnecessary context bloat.
+            </goal>
+        </rule>
+    </priority_instructions>
+</system_constraints>
 - Make sure you follow what is written in the `## Documentation` section below.
 
 ## Testing
