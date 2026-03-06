@@ -168,19 +168,32 @@ func (i *Installer) InstallJoin(joinConfig *config.JoinConfig) error {
 
 	if i.dryRun {
 		logger.Info("📝 Dry run mode - join installation steps:")
-		logger.Infof("1. Configure containerd mirrors (if airgap)")
-		logger.Infof("2. Write K0s configuration")
-		logger.Infof("3. Execute: k0s install %s --token-file <token>", joinConfig.Mode)
-		logger.Infof("4. Start K0s service")
-		logger.Infof("5. Wait for node to be ready")
+		logger.Infof("1. Extract k0s binary from embedded assets (if airgap)")
+		logger.Infof("2. Configure containerd mirrors (if airgap)")
+		logger.Infof("3. Write K0s configuration")
+		logger.Infof("4. Execute: k0s install %s --token-file <token>", joinConfig.Mode)
+		logger.Infof("5. Start K0s service")
+		logger.Infof("6. Wait for node to be ready")
 		return nil
 	}
 
-	// Configure containerd mirrors for airgap mode only
-	if airgap.IsAirGap() && i.config != nil && i.config.Airgap.Registry.Address != "" {
-		logger.Info("Configuring containerd registry mirrors...")
-		if err := i.configureContainerdMirrors(i.config.Airgap.Registry.Address); err != nil {
-			return fmt.Errorf("failed to configure containerd mirrors: %w", err)
+	// Handle airgap mode: extract k0s binary and configure containerd
+	if airgap.IsAirGap() {
+		// Ensure we have the full config for airgap
+		if i.config == nil {
+			return fmt.Errorf("airgap join installation requires full configuration, but config is not set")
+		}
+
+		// Create airgap installer
+		agInstaller := airgap.NewInstaller(i.config, i.debug)
+
+		// Check for version mismatch between config and bundled version
+		metadata := airgap.GetBuildMetadata()
+		CheckAirgapVersionMismatch(i.config.K0s.Version, metadata.K0sVersion)
+
+		// Use PrepareAirgap to extract k0s binary and configure containerd mirrors
+		if _, err := agInstaller.PrepareAirgap(); err != nil {
+			return err
 		}
 	}
 
@@ -277,51 +290,6 @@ spec:
 		utils.GetLogger().Debugf("📄 Wrote K0s join configuration to %s", configPath)
 	}
 
-	return nil
-}
-
-// configureContainerdMirrors configures containerd to use the specified registry as a mirror
-func (i *Installer) configureContainerdMirrors(registryAddress string) error {
-	logger := utils.GetLogger()
-
-	// Create containerd config directory
-	certsDir := "/etc/k0s/containerd.d/certs.d"
-	if err := os.MkdirAll(certsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create containerd certs directory: %w", err)
-	}
-
-	// List of registries to mirror
-	registries := []string{
-		"registry.k8s.io",
-		"quay.io",
-		"ghcr.io",
-		"gcr.io",
-		"docker.io",
-	}
-
-	// Configure mirror for each registry
-	for _, registry := range registries {
-		registryDir := filepath.Join(certsDir, registry)
-		if err := os.MkdirAll(registryDir, 0755); err != nil {
-			return fmt.Errorf("failed to create registry directory for %s: %w", registry, err)
-		}
-
-		hostsFile := filepath.Join(registryDir, "hosts.toml")
-		content := fmt.Sprintf(`server = "https://%s"
-
-[host."http://%s"]
-  capabilities = ["pull", "resolve"]
-  skip_verify = true
-`, registry, registryAddress)
-
-		if err := os.WriteFile(hostsFile, []byte(content), 0644); err != nil {
-			return fmt.Errorf("failed to write hosts.toml for %s: %w", registry, err)
-		}
-
-		logger.Debugf("Configured mirror for %s -> %s", registry, registryAddress)
-	}
-
-	logger.Infof("✅ Configured containerd mirrors for %d registries", len(registries))
 	return nil
 }
 

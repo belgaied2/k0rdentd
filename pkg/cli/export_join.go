@@ -141,20 +141,19 @@ func generateJoinConfig(baseCfg *config.K0rdentdConfig, mode, controllerIP, toke
 		},
 	}
 
-	// Only include airgap settings if running in airgap mode
+	// Always include airgap settings if running in airgap mode
+	// Joining nodes need the registry address to configure containerd mirrors
 	if airgap.IsAirGap() {
-		if baseCfg.Airgap.Registry.Address != "" {
-			cfg.Airgap = config.AirgapConfig{
-				Registry: baseCfg.Airgap.Registry,
-			}
-		} else if baseCfg.Airgap.BundlePath != "" {
-			// Generate registry address from controller IP
-			cfg.Airgap = config.AirgapConfig{
-				Registry: config.RegistryConfig{
-					Address:  fmt.Sprintf("%s:%d", controllerIP, registryPort),
-					Insecure: true,
-				},
-			}
+		registryAddress := baseCfg.Airgap.Registry.Address
+		if registryAddress == "" {
+			// Generate registry address from controller IP if not specified
+			registryAddress = fmt.Sprintf("%s:%d", controllerIP, registryPort)
+		}
+		cfg.Airgap = config.AirgapConfig{
+			Registry: config.RegistryConfig{
+				Address:  registryAddress,
+				Insecure: true,
+			},
 		}
 	}
 
