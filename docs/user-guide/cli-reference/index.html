@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://k0rdentd.belgai.de/docs/user-guide/cli-reference/">
       
       
-        <link rel="prev" href="../../getting-started/configuration/">
+        <link rel="prev" href="../../getting-started/multi-node/">
       
       
         <link rel="next" href="../airgap-installation/">
@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
     
     
       
@@ -552,6 +552,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/multi-node/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Node Cluster Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -746,6 +774,67 @@
       
     </span>
   </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#k0s-version-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        K0s Version Management
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="K0s Version Management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#decision-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Matrix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#airgap-mode-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Airgap Mode Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#online-mode-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Online Mode Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#version-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -1071,15 +1160,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#show-flavor" class="md-nav__link">
+  <a href="#export-join-config" class="md-nav__link">
     <span class="md-ellipsis">
       
-        show-flavor
+        export-join-config
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="show-flavor">
+    <nav class="md-nav" aria-label="export-join-config">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1094,7 +1183,90 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#flags_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flags
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#examples_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-it-does_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What It Does
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output Files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage-after-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage After Export
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#show-flavor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        show-flavor
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="show-flavor">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_7" class="md-nav__link">
     <span class="md-ellipsis">
       
         Examples
@@ -1133,7 +1305,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#usage_7" class="md-nav__link">
+  <a href="#usage_8" class="md-nav__link">
     <span class="md-ellipsis">
       
         Usage
@@ -1838,6 +2010,67 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#k0s-version-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        K0s Version Management
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="K0s Version Management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#decision-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Matrix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#airgap-mode-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Airgap Mode Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#online-mode-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Online Mode Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#version-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version Format
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#exit-codes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2159,15 +2392,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#show-flavor" class="md-nav__link">
+  <a href="#export-join-config" class="md-nav__link">
     <span class="md-ellipsis">
       
-        show-flavor
+        export-join-config
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="show-flavor">
+    <nav class="md-nav" aria-label="export-join-config">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2182,7 +2415,90 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#flags_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flags
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#examples_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-it-does_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What It Does
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output Files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage-after-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage After Export
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#show-flavor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        show-flavor
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="show-flavor">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#usage_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples_7" class="md-nav__link">
     <span class="md-ellipsis">
       
         Examples
@@ -2221,7 +2537,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#usage_7" class="md-nav__link">
+  <a href="#usage_8" class="md-nav__link">
     <span class="md-ellipsis">
       
         Usage
@@ -2378,9 +2694,29 @@
 <td>Path to configuration file</td>
 </tr>
 <tr>
-<td><code>--airgap</code></td>
+<td><code>--k0s-version, -k</code></td>
+<td>-</td>
+<td>Override K0s version from config</td>
+</tr>
+<tr>
+<td><code>--k0rdent-version, -r</code></td>
+<td>-</td>
+<td>Override K0rdent version from config</td>
+</tr>
+<tr>
+<td><code>--join</code></td>
 <td><code>false</code></td>
-<td>Force airgap mode installation</td>
+<td>Join an existing cluster (requires --mode)</td>
+</tr>
+<tr>
+<td><code>--mode</code></td>
+<td>-</td>
+<td>Node mode: controller or worker (required if --join is set)</td>
+</tr>
+<tr>
+<td><code>--replace-k0s, -R</code></td>
+<td><code>false</code></td>
+<td>Replace existing k0s binary without prompting (only if not running)</td>
 </tr>
 <tr>
 <td><code>--debug</code></td>
@@ -2395,32 +2731,148 @@
 </tbody>
 </table>
 <h3 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Basic installation</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Basic installation (first controller, implicit cluster-init)</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># With custom config file</span>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>/path/to/config.yaml
 </span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Airgap installation</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install<span class="w"> </span>--airgap
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Install specific k0s version</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install<span class="w"> </span>--k0s-version<span class="w"> </span>v1.32.4+k0s.0
 </span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Debug mode</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install<span class="w"> </span>--debug
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Replace existing k0s binary (if not running)</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install<span class="w"> </span>--replace-k0s
 </span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Dry run</span>
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install<span class="w"> </span>--dry-run
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Or via environment variable</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="nv">K0RDENTD_REPLACE_K0S</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># Join as additional controller</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install<span class="w"> </span>--join<span class="w"> </span>--mode<span class="o">=</span>controller
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="c1"># Join as worker node</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install<span class="w"> </span>--join<span class="w"> </span>--mode<span class="o">=</span>worker
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="c1"># Join using config file (join section in k0rdentd.yaml)</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="c1"># Debug mode</span>
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install<span class="w"> </span>--debug
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>
+</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="c1"># Dry run</span>
+</span><span id="__span-1-29"><a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install<span class="w"> </span>--dry-run
 </span></code></pre></div>
 <h3 id="what-it-does">What It Does<a class="headerlink" href="#what-it-does" title="Permanent link">&para;</a></h3>
-<ol>
-<li>Checks if K0s binary exists, installs if missing</li>
-<li>Generates K0s configuration from k0rdentd.yaml</li>
-<li>Installs K0s controller with worker enabled</li>
-<li>Starts K0s service</li>
-<li>Waits for K0s to be ready</li>
-<li>Waits for K0rdent Helm chart to be installed</li>
-<li>Creates cloud provider credentials (if configured)</li>
-<li>Exposes K0rdent UI</li>
-</ol>
+<p><strong>First Controller (cluster-init):</strong>
+1. Checks if K0s binary exists, installs if missing
+2. Checks for k0s version conflicts (online mode only)
+3. Generates K0s configuration from k0rdentd.yaml
+4. Installs K0s controller with worker enabled
+5. Starts K0s service
+6. Waits for K0s to be ready
+7. Waits for K0rdent Helm chart to be installed
+8. Creates cloud provider credentials (if configured)
+9. Exposes K0rdent UI</p>
+<p><strong>Joining Node (controller or worker):</strong>
+1. Reads join configuration from k0rdentd.yaml or CLI flags
+2. Configures containerd mirrors for airgap (if applicable)
+3. Writes K0s join configuration
+4. Installs K0s with join token
+5. Starts K0s service
+6. Waits for node to be ready</p>
+<h3 id="k0s-version-management">K0s Version Management<a class="headerlink" href="#k0s-version-management" title="Permanent link">&para;</a></h3>
+<p>K0rdentd provides comprehensive k0s version management that handles conflicts between:</p>
+<ul>
+<li><strong>Bundled k0s version</strong> (airgap mode) - Always used, warns if config differs</li>
+<li><strong>Config file <code>k0s.version</code></strong> - Specifies desired version</li>
+<li><strong>Already installed k0s binary</strong> - Checked for conflicts</li>
+</ul>
+<h4 id="decision-matrix">Decision Matrix<a class="headerlink" href="#decision-matrix" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>k0s Exists?</th>
+<th>Config Version?</th>
+<th>Running?</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Airgap</td>
+<td>N/A</td>
+<td>Any</td>
+<td>N/A</td>
+<td>Use bundled version, warn if config differs</td>
+</tr>
+<tr>
+<td>Online</td>
+<td>No</td>
+<td>Specified</td>
+<td>N/A</td>
+<td>Download specified version</td>
+</tr>
+<tr>
+<td>Online</td>
+<td>No</td>
+<td>Not specified</td>
+<td>N/A</td>
+<td>Use latest stable (via get.k0s.sh)</td>
+</tr>
+<tr>
+<td>Online</td>
+<td>Yes</td>
+<td>Same as installed</td>
+<td>Any</td>
+<td>Proceed with existing</td>
+</tr>
+<tr>
+<td>Online</td>
+<td>Yes</td>
+<td>Different</td>
+<td>No</td>
+<td>Use <code>--replace-k0s</code> to replace</td>
+</tr>
+<tr>
+<td>Online</td>
+<td>Yes</td>
+<td>Different</td>
+<td>Yes</td>
+<td><strong>Fail - require manual intervention</strong></td>
+</tr>
+</tbody>
+</table>
+<h4 id="airgap-mode-behavior">Airgap Mode Behavior<a class="headerlink" href="#airgap-mode-behavior" title="Permanent link">&para;</a></h4>
+<p>In airgap mode, the bundled k0s binary is always used. If <code>k0s.version</code> in the config differs from the bundled version, a warning is logged but installation continues:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>⚠️  Config specifies k0s version v1.31.0+k0s.0, but bundled version is v1.32.4+k0s.0.
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>   Using bundled version for airgap installation.
+</span></code></pre></div>
+<h4 id="online-mode-behavior">Online Mode Behavior<a class="headerlink" href="#online-mode-behavior" title="Permanent link">&para;</a></h4>
+<p><strong>No existing k0s:</strong>
+- If <code>k0s.version</code> is specified in config: Download that specific version
+- If <code>k0s.version</code> is NOT specified: Download latest stable version</p>
+<p><strong>Existing k0s - Same version:</strong>
+- Proceed with installation using existing binary</p>
+<p><strong>Existing k0s - Different version (not running):</strong>
+- Use <code>--replace-k0s</code> flag to replace the binary
+- Or fail with conflict message</p>
+<p><strong>Existing k0s - Different version (running):</strong>
+- <strong>Always fail</strong> with manual intervention instructions:
+  <div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>❌ Cannot replace k0s while it&#39;s running!
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>   The installed k0s (v1.30.0+k0s.0) is currently running as a service.
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>   Config specifies: v1.32.4+k0s.0
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>   To proceed, you must manually stop and reset k0s:
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>     sudo k0s stop
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>   Then run k0rdentd install again.
+</span></code></pre></div></p>
+<h4 id="version-format">Version Format<a class="headerlink" href="#version-format" title="Permanent link">&para;</a></h4>
+<p>k0s versions follow the format: <code>v{KUBERNETES_VERSION}+k0s.{K0S_PATCH}</code></p>
+<p>Examples:
+- <code>v1.32.4+k0s.0</code>
+- <code>v1.31.0+k0s.0</code>
+- <code>v1.30.0+k0s.0</code></p>
 <h3 id="exit-codes">Exit Codes<a class="headerlink" href="#exit-codes" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -2452,7 +2904,7 @@
 <h2 id="uninstall">uninstall<a class="headerlink" href="#uninstall" title="Permanent link">&para;</a></h2>
 <p>Uninstall K0s and K0rdent from the VM.</p>
 <h3 id="usage_1">Usage<a class="headerlink" href="#usage_1" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>k0rdentd<span class="w"> </span>uninstall<span class="w"> </span><span class="o">[</span>flags<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>k0rdentd<span class="w"> </span>uninstall<span class="w"> </span><span class="o">[</span>flags<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="flags_1">Flags<a class="headerlink" href="#flags_1" title="Permanent link">&para;</a></h3>
 <table>
@@ -2482,14 +2934,14 @@
 </tbody>
 </table>
 <h3 id="examples_1">Examples<a class="headerlink" href="#examples_1" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Basic uninstall</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>uninstall
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Force uninstall</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>uninstall<span class="w"> </span>--force
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="c1"># With custom config</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>uninstall<span class="w"> </span>-c<span class="w"> </span>/path/to/config.yaml
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Basic uninstall</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>uninstall
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Force uninstall</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>uninstall<span class="w"> </span>--force
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># With custom config</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>uninstall<span class="w"> </span>-c<span class="w"> </span>/path/to/config.yaml
 </span></code></pre></div>
 <h3 id="what-it-does_1">What It Does<a class="headerlink" href="#what-it-does_1" title="Permanent link">&para;</a></h3>
 <ol>
@@ -2502,7 +2954,7 @@
 <h2 id="version">version<a class="headerlink" href="#version" title="Permanent link">&para;</a></h2>
 <p>Show version information.</p>
 <h3 id="usage_2">Usage<a class="headerlink" href="#usage_2" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>k0rdentd<span class="w"> </span>version<span class="w"> </span><span class="o">[</span>flags<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>k0rdentd<span class="w"> </span>version<span class="w"> </span><span class="o">[</span>flags<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="flags_2">Flags<a class="headerlink" href="#flags_2" title="Permanent link">&para;</a></h3>
 <table>
@@ -2527,25 +2979,25 @@
 </tbody>
 </table>
 <h3 id="examples_2">Examples<a class="headerlink" href="#examples_2" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Show version</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>k0rdentd<span class="w"> </span>version
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Short format</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>k0rdentd<span class="w"> </span>version<span class="w"> </span>--short
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># JSON format</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>k0rdentd<span class="w"> </span>version<span class="w"> </span>--json
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Show version</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>k0rdentd<span class="w"> </span>version
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Short format</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>k0rdentd<span class="w"> </span>version<span class="w"> </span>--short
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># JSON format</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>k0rdentd<span class="w"> </span>version<span class="w"> </span>--json
 </span></code></pre></div>
 <h3 id="output">Output<a class="headerlink" href="#output" title="Permanent link">&para;</a></h3>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>k0rdentd version v0.2.0
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>A CLI tool to deploy K0s and K0rdent
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>Copyright © 2024 belgaied2
+<div class="language-text highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>k0rdentd version v0.2.0
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>A CLI tool to deploy K0s and K0rdent
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>Copyright © 2024 belgaied2
 </span></code></pre></div>
 <hr />
 <h2 id="expose-ui">expose-ui<a class="headerlink" href="#expose-ui" title="Permanent link">&para;</a></h2>
 <p>Expose the K0rdent UI via ingress and display access URLs.</p>
 <h3 id="usage_3">Usage<a class="headerlink" href="#usage_3" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>k0rdentd<span class="w"> </span>expose-ui<span class="w"> </span><span class="o">[</span>flags<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>k0rdentd<span class="w"> </span>expose-ui<span class="w"> </span><span class="o">[</span>flags<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="flags_3">Flags<a class="headerlink" href="#flags_3" title="Permanent link">&para;</a></h3>
 <table>
@@ -2580,14 +3032,14 @@
 </tbody>
 </table>
 <h3 id="examples_3">Examples<a class="headerlink" href="#examples_3" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Expose UI with defaults</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>expose-ui
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># Custom timeout</span>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>expose-ui<span class="w"> </span>--timeout<span class="w"> </span>10m
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>
-</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="c1"># Custom path</span>
-</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>expose-ui<span class="w"> </span>--path<span class="w"> </span>/ui
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Expose UI with defaults</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>expose-ui
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># Custom timeout</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>expose-ui<span class="w"> </span>--timeout<span class="w"> </span>10m
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="c1"># Custom path</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>expose-ui<span class="w"> </span>--path<span class="w"> </span>/ui
 </span></code></pre></div>
 <h3 id="what-it-does_2">What It Does<a class="headerlink" href="#what-it-does_2" title="Permanent link">&para;</a></h3>
 <ol>
@@ -2603,7 +3055,7 @@
 <h2 id="registry">registry<a class="headerlink" href="#registry" title="Permanent link">&para;</a></h2>
 <p>Start the OCI registry daemon for airgap installations.</p>
 <h3 id="usage_4">Usage<a class="headerlink" href="#usage_4" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>k0rdentd<span class="w"> </span>registry<span class="w"> </span><span class="o">[</span>flags<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>k0rdentd<span class="w"> </span>registry<span class="w"> </span><span class="o">[</span>flags<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="flags_4">Flags<a class="headerlink" href="#flags_4" title="Permanent link">&para;</a></h3>
 <table>
@@ -2658,19 +3110,19 @@
 </tbody>
 </table>
 <h3 id="examples_4">Examples<a class="headerlink" href="#examples_4" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Start registry with bundle</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>registry<span class="w"> </span>-b<span class="w"> </span>/path/to/bundle.tar.gz
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># Custom port</span>
-</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>registry<span class="w"> </span>-b<span class="w"> </span>/path/to/bundle.tar.gz<span class="w"> </span>-p<span class="w"> </span><span class="m">5001</span>
-</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>
-</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="c1"># With signature verification</span>
-</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>registry<span class="w"> </span>-b<span class="w"> </span>/path/to/bundle.tar.gz<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">  </span>--verify<span class="w"> </span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">  </span>--cosignKey<span class="w"> </span>https://get.mirantis.com/cosign.pub
-</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>
-</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="c1"># Run as daemon</span>
-</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>registry<span class="w"> </span>-b<span class="w"> </span>/path/to/bundle.tar.gz<span class="w"> </span>-d
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Start registry with bundle</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>registry<span class="w"> </span>-b<span class="w"> </span>/path/to/bundle.tar.gz
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># Custom port</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>registry<span class="w"> </span>-b<span class="w"> </span>/path/to/bundle.tar.gz<span class="w"> </span>-p<span class="w"> </span><span class="m">5001</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="c1"># With signature verification</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>registry<span class="w"> </span>-b<span class="w"> </span>/path/to/bundle.tar.gz<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="w">  </span>--verify<span class="w"> </span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="w">  </span>--cosignKey<span class="w"> </span>https://get.mirantis.com/cosign.pub
+</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>
+</span><span id="__span-12-12"><a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a><span class="c1"># Run as daemon</span>
+</span><span id="__span-12-13"><a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>registry<span class="w"> </span>-b<span class="w"> </span>/path/to/bundle.tar.gz<span class="w"> </span>-d
 </span></code></pre></div>
 <h3 id="what-it-does_3">What It Does<a class="headerlink" href="#what-it-does_3" title="Permanent link">&para;</a></h3>
 <ol>
@@ -2685,7 +3137,7 @@
 <h2 id="export-worker-artifacts">export-worker-artifacts<a class="headerlink" href="#export-worker-artifacts" title="Permanent link">&para;</a></h2>
 <p>Export artifacts needed for worker nodes in airgap installations.</p>
 <h3 id="usage_5">Usage<a class="headerlink" href="#usage_5" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>k0rdentd<span class="w"> </span>export-worker-artifacts<span class="w"> </span><span class="o">[</span>flags<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>k0rdentd<span class="w"> </span>export-worker-artifacts<span class="w"> </span><span class="o">[</span>flags<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="flags_5">Flags<a class="headerlink" href="#flags_5" title="Permanent link">&para;</a></h3>
 <table>
@@ -2715,14 +3167,14 @@
 </tbody>
 </table>
 <h3 id="examples_5">Examples<a class="headerlink" href="#examples_5" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Export to default location</span>
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>k0rdentd<span class="w"> </span>export-worker-artifacts
-</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
-</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># Custom output location</span>
-</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>k0rdentd<span class="w"> </span>export-worker-artifacts<span class="w"> </span>-o<span class="w"> </span>/path/to/output
-</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
-</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="c1"># With bundle reference</span>
-</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>k0rdentd<span class="w"> </span>export-worker-artifacts<span class="w"> </span>-b<span class="w"> </span>/path/to/bundle.tar.gz
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># Export to default location</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>k0rdentd<span class="w"> </span>export-worker-artifacts
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="c1"># Custom output location</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>k0rdentd<span class="w"> </span>export-worker-artifacts<span class="w"> </span>-o<span class="w"> </span>/path/to/output
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="c1"># With bundle reference</span>
+</span><span id="__span-14-8"><a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>k0rdentd<span class="w"> </span>export-worker-artifacts<span class="w"> </span>-b<span class="w"> </span>/path/to/bundle.tar.gz
 </span></code></pre></div>
 <h3 id="what-it-does_4">What It Does<a class="headerlink" href="#what-it-does_4" title="Permanent link">&para;</a></h3>
 <ol>
@@ -2732,25 +3184,134 @@
 <li>Creates README with instructions</li>
 </ol>
 <hr />
+<h2 id="export-join-config">export-join-config<a class="headerlink" href="#export-join-config" title="Permanent link">&para;</a></h2>
+<p>Export join configurations for additional nodes in multi-node deployments.</p>
+<h3 id="usage_6">Usage<a class="headerlink" href="#usage_6" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>k0rdentd<span class="w"> </span>export-join-config<span class="w"> </span><span class="o">[</span>flags<span class="o">]</span>
+</span></code></pre></div>
+<h3 id="flags_6">Flags<a class="headerlink" href="#flags_6" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--output, -o</code></td>
+<td><code>./join-configs</code></td>
+<td>Output directory for join config files</td>
+</tr>
+<tr>
+<td><code>--controller-ip</code></td>
+<td>(auto-detected)</td>
+<td>Override auto-detected controller IP address</td>
+</tr>
+<tr>
+<td><code>--expiry, -e</code></td>
+<td><code>24h</code></td>
+<td>Token expiry time (e.g., 24h, 168h for 7 days)</td>
+</tr>
+<tr>
+<td><code>--registry-port</code></td>
+<td><code>5000</code></td>
+<td>Registry port for airgap mode</td>
+</tr>
+<tr>
+<td><code>--overwrite, -f</code></td>
+<td><code>false</code></td>
+<td>Overwrite existing files</td>
+</tr>
+<tr>
+<td><code>--debug</code></td>
+<td><code>false</code></td>
+<td>Enable debug logging</td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples_6">Examples<a class="headerlink" href="#examples_6" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Export join configs with defaults</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>export-join-config
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c1"># Custom output directory</span>
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>export-join-config<span class="w"> </span>-o<span class="w"> </span>/path/to/configs
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>
+</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="c1"># Override controller IP (useful if auto-detection fails)</span>
+</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>export-join-config<span class="w"> </span>--controller-ip<span class="w"> </span><span class="m">192</span>.168.1.100
+</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>
+</span><span id="__span-16-10"><a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="c1"># Longer token expiry (7 days)</span>
+</span><span id="__span-16-11"><a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>export-join-config<span class="w"> </span>--expiry<span class="w"> </span>168h
+</span><span id="__span-16-12"><a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>
+</span><span id="__span-16-13"><a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a><span class="c1"># Overwrite existing files</span>
+</span><span id="__span-16-14"><a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>export-join-config<span class="w"> </span>--overwrite
+</span></code></pre></div>
+<h3 id="what-it-does_5">What It Does<a class="headerlink" href="#what-it-does_5" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Loads current k0rdentd configuration</li>
+<li>Auto-detects controller IP address</li>
+<li>Creates controller join token via <code>k0s token create --role=controller</code></li>
+<li>Creates worker join token via <code>k0s token create --role=worker</code></li>
+<li>Generates <code>controller-join.yaml</code> with join config for additional controllers</li>
+<li>Generates <code>worker-join.yaml</code> with join config for worker nodes</li>
+<li>Includes airgap registry settings if applicable</li>
+</ol>
+<h3 id="output-files">Output Files<a class="headerlink" href="#output-files" title="Permanent link">&para;</a></h3>
+<p>The command creates two files in the output directory:</p>
+<p><strong>controller-join.yaml</strong> - For joining additional controller nodes:
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nt">join</span><span class="p">:</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">controller</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">  </span><span class="nt">server</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">192.168.1.10</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">  </span><span class="nt">token</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;k0s-controller-token...&quot;</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="nt">k0s</span><span class="p">:</span>
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="w">  </span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;v1.32.4+k0s.0&quot;</span>
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="c1"># Airgap settings (if applicable)</span>
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="nt">airgap</span><span class="p">:</span>
+</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="w">  </span><span class="nt">registry</span><span class="p">:</span>
+</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a><span class="w">    </span><span class="nt">address</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">192.168.1.10:5000</span>
+</span><span id="__span-17-13"><a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="w">    </span><span class="nt">insecure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span></code></pre></div></p>
+<p><strong>worker-join.yaml</strong> - For joining worker nodes:
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nt">join</span><span class="p">:</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">worker</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">  </span><span class="nt">server</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">192.168.1.10</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">  </span><span class="nt">token</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;k0s-worker-token...&quot;</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="nt">k0s</span><span class="p">:</span>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="w">  </span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;v1.32.4+k0s.0&quot;</span>
+</span></code></pre></div></p>
+<h3 id="usage-after-export">Usage After Export<a class="headerlink" href="#usage-after-export" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># On additional controller node</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>scp<span class="w"> </span>controller-join.yaml<span class="w"> </span>user@controller2:/etc/k0rdentd/k0rdentd.yaml
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="c1"># On worker node</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>scp<span class="w"> </span>worker-join.yaml<span class="w"> </span>user@worker1:/etc/k0rdentd/k0rdentd.yaml
+</span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install
+</span></code></pre></div>
+<hr />
 <h2 id="show-flavor">show-flavor<a class="headerlink" href="#show-flavor" title="Permanent link">&para;</a></h2>
 <p>Show the build flavor (online or airgap).</p>
-<h3 id="usage_6">Usage<a class="headerlink" href="#usage_6" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>k0rdentd<span class="w"> </span>show-flavor<span class="w"> </span><span class="o">[</span>flags<span class="o">]</span>
+<h3 id="usage_7">Usage<a class="headerlink" href="#usage_7" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>k0rdentd<span class="w"> </span>show-flavor<span class="w"> </span><span class="o">[</span>flags<span class="o">]</span>
 </span></code></pre></div>
-<h3 id="examples_6">Examples<a class="headerlink" href="#examples_6" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>k0rdentd<span class="w"> </span>show-flavor
+<h3 id="examples_7">Examples<a class="headerlink" href="#examples_7" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>k0rdentd<span class="w"> </span>show-flavor
 </span></code></pre></div>
 <h3 id="output_1">Output<a class="headerlink" href="#output_1" title="Permanent link">&para;</a></h3>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>airgap
+<div class="language-text highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>airgap
 </span></code></pre></div>
 <p>or</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>online
+<div class="language-text highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>online
 </span></code></pre></div>
 <hr />
 <h2 id="config">config<a class="headerlink" href="#config" title="Permanent link">&para;</a></h2>
 <p>Manage configuration (placeholder for future use).</p>
-<h3 id="usage_7">Usage<a class="headerlink" href="#usage_7" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>k0rdentd<span class="w"> </span>config<span class="w"> </span><span class="o">[</span>command<span class="o">]</span>
+<h3 id="usage_8">Usage<a class="headerlink" href="#usage_8" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>k0rdentd<span class="w"> </span>config<span class="w"> </span><span class="o">[</span>command<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="subcommands">Subcommands<a class="headerlink" href="#subcommands" title="Permanent link">&para;</a></h3>
 <table>
@@ -2803,6 +3364,10 @@
 <td>(sets k0rdent.version in config)</td>
 </tr>
 <tr>
+<td><code>K0RDENTD_REPLACE_K0S</code></td>
+<td><code>--replace-k0s</code></td>
+</tr>
+<tr>
 <td><code>K0RDENTD_AIRGAP_BUNDLE_PATH</code></td>
 <td>(sets airgap.bundlePath in config)</td>
 </tr>
@@ -2850,15 +3415,15 @@
 </tbody>
 </table>
 <h3 id="enabling-debug-logging">Enabling Debug Logging<a class="headerlink" href="#enabling-debug-logging" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Via flag</span>
-</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install<span class="w"> </span>--debug
-</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>
-</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="c1"># Via environment variable</span>
-</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">K0RDENTD_DEBUG</span><span class="o">=</span><span class="nb">true</span>
-</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install
-</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>
-</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="c1"># Via config file</span>
-</span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>debug:<span class="w"> </span><span class="nb">true</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c1"># Via flag</span>
+</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install<span class="w"> </span>--debug
+</span><span id="__span-25-3"><a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>
+</span><span id="__span-25-4"><a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="c1"># Via environment variable</span>
+</span><span id="__span-25-5"><a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">K0RDENTD_DEBUG</span><span class="o">=</span><span class="nb">true</span>
+</span><span id="__span-25-6"><a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>sudo<span class="w"> </span>k0rdentd<span class="w"> </span>install
+</span><span id="__span-25-7"><a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a>
+</span><span id="__span-25-8"><a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a><span class="c1"># Via config file</span>
+</span><span id="__span-25-9"><a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a>debug:<span class="w"> </span><span class="nb">true</span>
 </span></code></pre></div>
 <hr />
 <h2 id="exit-codes_1">Exit Codes<a class="headerlink" href="#exit-codes_1" title="Permanent link">&para;</a></h2>
