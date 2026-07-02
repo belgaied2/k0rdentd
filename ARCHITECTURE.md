@@ -23,18 +23,18 @@ graph TD
 ### Airgap Mode
 
 ```mermaid
-graph TD
+graph TD;
     A[User] -->|k0rdentd registry| B[Registry Daemon]
-    B -->|Extract skopeo| C[/usr/bin/skopeo]
+    B -->|Extract skopeo| C["/usr/bin/skopeo"]
     B -->|Extract bundle| D[k0rdent Bundle]
     D -->|Push images| E[Local OCI Registry<br/>localhost:5000]
 
     A -->|k0rdentd install --airgap| F[Airgap Installer]
-    F -->|Extract k0s binary| G[/usr/local/bin/k0s]
-    F -->|Configure containerd| H[/etc/k0s/containerd.d/]
+    F -->|Extract k0s binary| G["/usr/local/bin/k0s"]
+    F -->|Configure containerd| H["/etc/k0s/containerd.d/"]
     F -->|Generate airgap config| I["/etc/k0s/k0s.yaml"]
-    F -->|Install k0s| G
-    G -->|Start cluster| J[K0s Cluster]
+    G -->|Install k0s| H[K0s installed, no Cluster yet]
+    H -->|Start cluster| J[K0s Cluster]
     J -->|Helm Extension| K[Pull from E]
     K --> L[K0rdent Deployed]
 ```
